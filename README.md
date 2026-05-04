@@ -51,8 +51,8 @@ fn App() -> Html {
 * [x] `div`, `span`, `p`
 * [x] `h1` → `h6`
 * [x] `button`
-* [ ] `input`
-* [ ] `textarea`
+* [x] `input`
+* [x] `textarea`
 
 ### Layout / Structure
 
@@ -76,10 +76,10 @@ fn App() -> Html {
 
 ### Void Elements Handling
 
-* [ ] Detect void elements:
+* [x] Detect void elements:
 
   * `input`, `img`, `br`, `hr`, `meta`, `link`, etc.
-* [ ] Generate self-closing tags (`<input />`)
+* [x] Generate self-closing tags (`<input />`)
 * [ ] Prevent children on void elements (with compile time error)
 
 ---
