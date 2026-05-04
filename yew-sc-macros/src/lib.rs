@@ -1,11 +1,12 @@
+mod utils;
+
 use proc_macro::TokenStream;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use syn::{
     Token,
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
+use utils::parser::StyleParser;
 
 struct StyledComponentInput {
     pub name: syn::Ident,
@@ -23,35 +24,12 @@ impl Parse for StyledComponentInput {
     }
 }
 
-fn block_to_css(block: &syn::Block) -> String {
-    block
-        .stmts
-        .iter()
-        .map(|stmt| {
-            let s = quote::quote!(#stmt)
-                .to_string()
-                .replace(" =", ":")
-                .replace("\"", " ");
-            s
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-fn hash_css(css: &str) -> String {
-    let mut hasher = DefaultHasher::new();
-    css.hash(&mut hasher);
-    format!("sc-{:x}", hasher.finish())
-}
-
-#[proc_macro]
-pub fn styled_component(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as StyledComponentInput);
-    let css_string = block_to_css(&input.css);
-    let class_name = hash_css(&css_string);
-    let component_name = &input.name;
-    let tag = &input.tag;
-
+fn codegen_component(
+    component_name: &syn::Ident,
+    tag: &syn::Ident,
+    class_name: String,
+    css_string: String,
+) -> TokenStream {
     let expended = quote::quote! {
         #[yew::component]
         pub fn #component_name(props: &StyledComponentProps) -> yew::Html {
@@ -60,7 +38,6 @@ pub fn styled_component(input: TokenStream) -> TokenStream {
             });
             yew::html! {
                 <#tag onclick={props.onclick.clone()} class={classes!(#class_name, props.class.clone())}>
-
                     {for props.children.iter()}
                 </#tag>
             }
@@ -68,4 +45,44 @@ pub fn styled_component(input: TokenStream) -> TokenStream {
     };
 
     expended.into()
+}
+fn codegen_void_component(
+    component_name: &syn::Ident,
+    tag: &syn::Ident,
+    class_name: String,
+    css_string: String,
+) -> TokenStream {
+    let expended = quote::quote! {
+        #[yew::component]
+        pub fn #component_name(props: &StyledVoidComponentProps) -> yew::Html {
+            yew::use_effect(|| {
+                register_style(#class_name, #css_string)
+            });
+            yew::html! {
+                <#tag class={classes!(#class_name, props.class.clone())}/>
+            }
+        }
+    };
+
+    expended.into()
+}
+
+#[proc_macro]
+pub fn styled_component(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as StyledComponentInput);
+    let css_string = StyleParser::block_to_css(&input.css);
+    let class_name = StyleParser::hash_css(&css_string);
+    let component_name = &input.name;
+    let tag = &input.tag;
+
+    let is_void = matches!(
+        tag.to_string().as_str(),
+        "input" | "img" | "br" | "hr" | "meta" | "link"
+    );
+
+    if is_void {
+        codegen_void_component(component_name, tag, class_name, css_string)
+    } else {
+        codegen_component(component_name, tag, class_name, css_string)
+    }
 }

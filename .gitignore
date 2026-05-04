@@ -1,2 +1,4 @@
 /target
 /dist
+/yew-sc-core/target
+/yew-sc-macros/target

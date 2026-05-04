@@ -1,5 +1,6 @@
 use yew::prelude::*;
-use yew_sc_core::{props::StyledComponentProps, registry::register_style};
+use yew_sc_core::props::{StyledComponentProps, StyledVoidComponentProps};
+use yew_sc_core::registry::register_style;
 use yew_sc_macros::styled_component;
 
 styled_component! {
@@ -19,6 +20,12 @@ styled_component! {
         border = none;
     }
 }
+styled_component! {
+    NameInput => input {
+        outline = none;
+        border = "dashed 2px rgb(0,0,255)";
+    }
+}
 
 #[component]
 fn App() -> Html {
@@ -34,6 +41,7 @@ fn App() -> Html {
     html! {
         <StyledDiv>
             <Title>{"Hey!"}</Title>
+            <NameInput/>
             <Button onclick={handle_click}><>{*counter}</></Button>
         </StyledDiv>
     }
