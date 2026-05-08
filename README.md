@@ -1,6 +1,9 @@
+
+
+![Yew logo](assets/yew_logo.svg) 
 # Styled Components for Yew 💅
 
-## (WIP)
+
 
 ### Usage:
 ```rs
