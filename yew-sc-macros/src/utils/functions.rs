@@ -1,5 +1,7 @@
 use syn::{Ident, Result};
 
+use super::to_css::ToCss;
+
 const KNOWN_FUNCTIONS: &[&str] = &[
     "rgb",
     "rgba",
@@ -36,12 +38,8 @@ const KNOWN_FUNCTIONS: &[&str] = &[
     "clamp",
 ];
 
-fn ident_to_css(ident: &Ident) -> String {
-    ident.to_string().replace('_', "-")
-}
-
 pub fn validate_function(ident: &Ident) -> Result<()> {
-    let name = ident_to_css(ident);
+    let name = ident.to_css();
     if KNOWN_FUNCTIONS.contains(&name.as_str()) {
         Ok(())
     } else {

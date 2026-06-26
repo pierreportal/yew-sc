@@ -1,5 +1,7 @@
 use syn::{Ident, Result};
 
+use super::to_css::ToCss;
+
 const KNOWN_PROPERTIES: &[&str] = &[
     "align-items",
     "align-self",
@@ -88,12 +90,8 @@ const KNOWN_PROPERTIES: &[&str] = &[
     "z-index",
 ];
 
-fn ident_to_css(ident: &Ident) -> String {
-    ident.to_string().replace('_', "-")
-}
-
 pub fn validate_property(ident: &Ident) -> Result<()> {
-    let name = ident_to_css(ident);
+    let name = ident.to_css();
     if KNOWN_PROPERTIES.contains(&name.as_str()) {
         Ok(())
     } else {

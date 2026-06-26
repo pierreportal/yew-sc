@@ -8,6 +8,7 @@ use syn::{Ident, LitFloat, LitInt, LitStr, Result, Token, braced, parenthesized}
 
 use super::functions::validate_function;
 use super::properties::validate_property;
+use super::to_css::ToCss;
 use super::units::validate_unit;
 
 pub struct CssBlock {
@@ -35,10 +36,6 @@ pub enum CssValue {
     Int(LitInt),
     Float(LitFloat),
     Function { name: Ident, args: Vec<CssValue> },
-}
-
-fn ident_to_css(ident: &Ident) -> String {
-    ident.to_string().replace('_', "-")
 }
 
 fn parse_selector(input: ParseStream) -> Result<String> {
@@ -155,20 +152,20 @@ impl Parse for CssValue {
     }
 }
 
-impl CssValue {
-    pub fn to_css(&self) -> String {
+impl ToCss for CssValue {
+    fn to_css(&self) -> String {
         match self {
-            CssValue::Str(s) => s.value(),
-            CssValue::Keyword(id) => ident_to_css(id),
-            CssValue::Int(i) => i.token().to_string(),
-            CssValue::Float(f) => f.token().to_string(),
+            CssValue::Str(s) => s.to_css(),
+            CssValue::Keyword(id) => id.to_css(),
+            CssValue::Int(i) => i.to_css(),
+            CssValue::Float(f) => f.to_css(),
             CssValue::Function { name, args } => {
                 let args_str = args
                     .iter()
                     .map(CssValue::to_css)
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{}({})", ident_to_css(name), args_str)
+                format!("{}({})", name.to_css(), args_str)
             }
         }
     }
@@ -181,11 +178,7 @@ impl CssBlock {
         for item in &self.items {
             match item {
                 CssItem::Decl(d) => {
-                    own.push(format!(
-                        "{}: {};",
-                        ident_to_css(&d.property),
-                        d.value.to_css()
-                    ));
+                    own.push(format!("{}: {};", d.property.to_css(), d.value.to_css()));
                 }
                 CssItem::Nested(rule) => {
                     let resolved = rule.selector.replace('&', parent);
