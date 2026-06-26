@@ -135,3 +135,42 @@ pub fn validate_tag(ident: &Ident) -> Result<()> {
 pub fn is_void_tag(name: &str) -> bool {
     VOID_TAGS.contains(&name)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proc_macro2::Span;
+    use syn::Ident;
+
+    fn ident(name: &str) -> Ident {
+        Ident::new(name, Span::call_site())
+    }
+
+    #[test]
+    fn known_tag_is_accepted() {
+        assert!(validate_tag(&ident("div")).is_ok());
+        assert!(validate_tag(&ident("h1")).is_ok());
+        assert!(validate_tag(&ident("img")).is_ok());
+    }
+
+    #[test]
+    fn unknown_tag_is_rejected_with_message() {
+        let err = validate_tag(&ident("zonk")).unwrap_err();
+        assert!(err.to_string().contains("zonk"));
+        assert!(err.to_string().contains("not a recognized HTML tag"));
+    }
+
+    #[test]
+    fn void_tags_are_void() {
+        for t in VOID_TAGS {
+            assert!(is_void_tag(t), "expected `{t}` to be void");
+        }
+    }
+
+    #[test]
+    fn non_void_tags_are_not_void() {
+        for t in ["div", "span", "button", "p", "h1", "a"] {
+            assert!(!is_void_tag(t), "expected `{t}` to not be void");
+        }
+    }
+}

@@ -63,7 +63,22 @@ generate independent components — styles are never merged across siblings.
 ```toml
 [dependencies]
 yew    = { version = "0.23", features = ["csr"] }
-yew-sc = { path = "https://github.com/pierreportal/yew-sc" }
+yew-sc = { git = "https://github.com/pierreportal/yew-sc" }
+```
+
+Pin to a tag or commit for reproducible builds — a bare `git = …` follows the
+branch HEAD on every `cargo update`:
+
+```toml
+yew-sc = { git = "https://github.com/pierreportal/yew-sc", tag = "v0.1.0" }
+# or
+yew-sc = { git = "https://github.com/pierreportal/yew-sc", rev = "abc1234" }
+```
+
+To enable static stylesheet extraction, add the feature flag:
+
+```toml
+yew-sc = { git = "https://github.com/pierreportal/yew-sc", features = ["static-extract"] }
 ```
 
 Run the bundled demo with [`trunk`](https://trunkrs.dev):

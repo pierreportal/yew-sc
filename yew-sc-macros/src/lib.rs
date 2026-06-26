@@ -2,24 +2,17 @@ mod utils;
 
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
+use std::collections::BTreeMap;
 use syn::{
     Fields, ItemStruct, Token,
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
 };
-use std::collections::BTreeMap;
 use utils::parser::{CssBlock, Keyframes, hash_css};
 use utils::tags::{is_void_tag, validate_tag};
 
 const BASE_FIELD_NAMES: &[&str] = &[
-    "children",
-    "class",
-    "onclick",
-    "id",
-    "title",
-    "hidden",
-    "tabindex",
-    "role",
+    "children", "class", "onclick", "id", "title", "hidden", "tabindex", "role",
 ];
 
 fn base_field(name: &str) -> syn::Field {
@@ -357,7 +350,7 @@ fn expand_component(
     let style_forward = if !has_any_vars {
         quote!()
     } else {
-        quote!(style={style.clone()})
+        quote!(style = { style.clone() })
     };
 
     let children_render = if is_void {
@@ -414,7 +407,7 @@ fn expand_component(
         }
     };
 
-    let expanded = if let Some(user_props) = &input.user_props {
+    if let Some(user_props) = &input.user_props {
         let props_ty = quote!(#user_props);
         let fn_tokens = component_fn(&props_ty);
         quote! { #fn_tokens }
@@ -463,9 +456,7 @@ fn expand_component(
 
             #fn_tokens
         }
-    };
-
-    expanded
+    }
 }
 
 #[proc_macro]

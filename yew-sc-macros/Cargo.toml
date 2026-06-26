@@ -2,6 +2,13 @@
 name = "yew-sc-macros"
 version = "0.1.0"
 edition = "2024"
+description = "Procedural macros for yew-sc: parser and codegen for `styled_component!`."
+authors = ["Pierre Portal <pierreportal@proton.me>"]
+license = "MIT"
+repository = "https://github.com/pierreportal/yew-sc"
+homepage = "https://github.com/pierreportal/yew-sc"
+keywords = ["yew", "css", "styled-components", "macro", "proc-macro"]
+categories = ["gui", "web-programming", "wasm"]
 
 [lib]
 proc-macro = true

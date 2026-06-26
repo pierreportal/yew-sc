@@ -2,9 +2,15 @@
 name = "yew-sc"
 version = "0.1.0"
 edition = "2024"
-description = "Styled Components for Yew"
+description = "Styled components for Yew — compile-time CSS validation, hashed classes, dynamic styles via CSS custom properties, and optional static stylesheet extraction."
 authors = ["Pierre Portal <pierreportal@proton.me>"]
 license = "MIT"
+repository = "https://github.com/pierreportal/yew-sc"
+homepage = "https://github.com/pierreportal/yew-sc"
+documentation = "https://docs.rs/yew-sc"
+readme = "README.md"
+keywords = ["yew", "css", "styled-components", "wasm", "frontend"]
+categories = ["gui", "web-programming", "wasm"]
 
 [lib]
 path = "src/lib.rs"

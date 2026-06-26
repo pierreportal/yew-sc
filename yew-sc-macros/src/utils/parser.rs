@@ -122,7 +122,8 @@ fn parse_stop_selector(input: ParseStream) -> Result<String> {
     let mut out = String::new();
     for (i, tt) in tokens.iter().enumerate() {
         if i > 0 {
-            let glue = matches!(tt, TokenTree::Punct(p) if p.as_char() == '%' || p.as_char() == ',');
+            let glue =
+                matches!(tt, TokenTree::Punct(p) if p.as_char() == '%' || p.as_char() == ',');
             if !glue {
                 out.push(' ');
             }
@@ -427,11 +428,9 @@ fn replace_idents(input: &str, names: &BTreeMap<String, String>) -> String {
             }
             let word = &input[start..i];
             let prev_ok = start == 0 || !is_ident_char(bytes[start - 1] as char);
-            if prev_ok {
-                if let Some(hashed) = names.get(word) {
-                    out.push_str(hashed);
-                    continue;
-                }
+            if prev_ok && let Some(hashed) = names.get(word) {
+                out.push_str(hashed);
+                continue;
             }
             out.push_str(word);
         } else {
@@ -446,4 +445,197 @@ pub fn hash_css(css: &str) -> String {
     let mut hasher = DefaultHasher::new();
     css.hash(&mut hasher);
     format!("ysc-{:x}", hasher.finish())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use syn::parse_str;
+
+    #[test]
+    fn hash_is_deterministic_and_prefixed() {
+        let a = hash_css("color: red;");
+        let b = hash_css("color: red;");
+        assert_eq!(a, b);
+        assert!(a.starts_with("ysc-"));
+    }
+
+    #[test]
+    fn hash_differs_for_different_input() {
+        assert_ne!(hash_css("color: red;"), hash_css("color: blue;"));
+    }
+
+    #[test]
+    fn css_block_parses_simple_decls() {
+        let block: CssBlock = parse_str("{ color = red; padding = 10px; }").unwrap();
+        let rules = block.to_rules(".self");
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].0, ".self");
+        assert_eq!(rules[0].1, "color: red; padding: 10px;");
+    }
+
+    #[test]
+    fn css_block_nests_via_ampersand() {
+        let block: CssBlock = parse_str("{ color = blue; &:hover { color = red; } }").unwrap();
+        let rules = block.to_rules(".self");
+        assert_eq!(rules.len(), 2);
+        assert_eq!(rules[0].0, ".self");
+        assert_eq!(rules[0].1, "color: blue;");
+        // selector preserves `&` glued to `:hover` and replaces `&` with parent.
+        assert_eq!(rules[1].0, ".self:hover");
+        assert_eq!(rules[1].1, "color: red;");
+    }
+
+    #[test]
+    fn vars_become_css_var_calls() {
+        let block: CssBlock = parse_str("{ background = $bg; }").unwrap();
+        let rules = block.to_rules(".x");
+        assert_eq!(rules[0].1, "background: var(--bg);");
+    }
+
+    #[test]
+    fn vars_in_underscored_idents_dash_in_var_name() {
+        let block: CssBlock = parse_str("{ background = $bg_hover; }").unwrap();
+        let rules = block.to_rules(".x");
+        // Var idents go through to_css → underscores become dashes.
+        assert!(rules[0].1.contains("var(--bg-hover)"));
+    }
+
+    #[test]
+    fn collect_vars_dedupes_and_orders() {
+        let block: CssBlock =
+            parse_str("{ color = $a; background = $b; border_color = $a; }").unwrap();
+        let vars: Vec<String> = block
+            .collect_vars()
+            .into_iter()
+            .map(|i| i.to_string())
+            .collect();
+        assert_eq!(vars, vec!["a".to_string(), "b".to_string()]);
+    }
+
+    #[test]
+    fn collect_vars_descends_into_nested() {
+        let block: CssBlock = parse_str("{ color = $a; &:hover { background = $b; } }").unwrap();
+        let names: Vec<String> = block
+            .collect_vars()
+            .into_iter()
+            .map(|i| i.to_string())
+            .collect();
+        assert!(names.contains(&"a".to_string()));
+        assert!(names.contains(&"b".to_string()));
+    }
+
+    #[test]
+    fn function_call_renders_args() {
+        let block: CssBlock = parse_str("{ background = rgb(10, 20, 30); }").unwrap();
+        let rules = block.to_rules(".x");
+        assert_eq!(rules[0].1, "background: rgb(10, 20, 30);");
+    }
+
+    #[test]
+    fn keyframes_parses_and_renders_hashed_name() {
+        let kf: Keyframes = parse_str(
+            "spin { from { transform = rotate(0deg); } to { transform = rotate(360deg); } }",
+        )
+        .unwrap();
+        let hashed = kf.hashed_name();
+        assert!(hashed.starts_with("spin-"));
+        let rendered = kf.rendered_css(&hashed);
+        assert!(rendered.starts_with("@keyframes spin-"));
+        assert!(rendered.contains("from {"));
+        assert!(rendered.contains("transform: rotate(0deg);"));
+        assert!(rendered.contains("to {"));
+    }
+
+    #[test]
+    fn keyframes_hashed_name_is_deterministic() {
+        let a: Keyframes =
+            parse_str("blink { from { opacity = 0; } to { opacity = 1; } }").unwrap();
+        let b: Keyframes =
+            parse_str("blink { from { opacity = 0; } to { opacity = 1; } }").unwrap();
+        assert_eq!(a.hashed_name(), b.hashed_name());
+    }
+
+    #[test]
+    fn rewrite_keyframe_refs_replaces_animation_name_keyword() {
+        let mut block: CssBlock = parse_str("{ animation_name = spin; color = red; }").unwrap();
+        let mut names: BTreeMap<String, String> = BTreeMap::new();
+        names.insert("spin".to_string(), "spin-abc123".to_string());
+        block.rewrite_keyframe_refs(&names);
+        let rules = block.to_rules(".x");
+        assert!(rules[0].1.contains("animation-name: spin-abc123"));
+        assert!(rules[0].1.contains("color: red"));
+    }
+
+    #[test]
+    fn rewrite_keyframe_refs_inside_animation_shorthand_string() {
+        let mut block: CssBlock =
+            parse_str("{ animation = \"pulse 1.6s ease-in-out infinite\"; }").unwrap();
+        let mut names: BTreeMap<String, String> = BTreeMap::new();
+        names.insert("pulse".to_string(), "pulse-deadbeef".to_string());
+        block.rewrite_keyframe_refs(&names);
+        let rules = block.to_rules(".x");
+        assert!(
+            rules[0]
+                .1
+                .contains("pulse-deadbeef 1.6s ease-in-out infinite")
+        );
+    }
+
+    #[test]
+    fn rewrite_keyframe_refs_only_touches_animation_properties() {
+        let mut block: CssBlock = parse_str("{ color = spin; }").unwrap();
+        let mut names: BTreeMap<String, String> = BTreeMap::new();
+        names.insert("spin".to_string(), "spin-xxx".to_string());
+        block.rewrite_keyframe_refs(&names);
+        let rules = block.to_rules(".x");
+        // `color = spin` is left untouched because the property isn't `animation*`.
+        assert_eq!(rules[0].1, "color: spin;");
+    }
+
+    #[test]
+    fn lower_exprs_replaces_inline_exprs_with_synthetic_vars() {
+        let mut block: CssBlock =
+            parse_str("{ background = ${ if true { \"red\" } else { \"blue\" } }; }").unwrap();
+        let exprs = block.lower_exprs();
+        assert_eq!(exprs.len(), 1);
+        assert_eq!(exprs[0].0.to_string(), "__yew_sc_expr_0");
+        // After lowering, the rule references the synthetic var. Underscores
+        // in the ident are translated to dashes by ToCss, so the leading `__`
+        // becomes `--`, yielding `----yew-sc-expr-0`. The codegen side mirrors
+        // this when setting the inline custom property, so the two ends agree.
+        let rules = block.to_rules(".x");
+        assert!(
+            rules[0].1.contains("var(----yew-sc-expr-0)"),
+            "got: {}",
+            rules[0].1
+        );
+    }
+
+    #[test]
+    fn invalid_property_fails_to_parse() {
+        let err = match syn::parse_str::<CssBlock>("{ colur = red; }") {
+            Ok(_) => panic!("expected parse error"),
+            Err(e) => e,
+        };
+        assert!(err.to_string().contains("not a recognized CSS property"));
+    }
+
+    #[test]
+    fn invalid_unit_fails_to_parse() {
+        let err = match syn::parse_str::<CssBlock>("{ padding = 10ft; }") {
+            Ok(_) => panic!("expected parse error"),
+            Err(e) => e,
+        };
+        assert!(err.to_string().contains("not a recognized CSS unit"));
+    }
+
+    #[test]
+    fn invalid_function_fails_to_parse() {
+        let err = match syn::parse_str::<CssBlock>("{ color = bogus(1, 2); }") {
+            Ok(_) => panic!("expected parse error"),
+            Err(e) => e,
+        };
+        assert!(err.to_string().contains("not a recognized CSS function"));
+    }
 }

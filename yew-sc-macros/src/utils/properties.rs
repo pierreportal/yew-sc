@@ -111,3 +111,34 @@ pub fn validate_property(ident: &Ident) -> Result<()> {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proc_macro2::Span;
+    use syn::Ident;
+
+    fn ident(name: &str) -> Ident {
+        Ident::new(name, Span::call_site())
+    }
+
+    #[test]
+    fn known_property_accepted() {
+        assert!(validate_property(&ident("color")).is_ok());
+        assert!(validate_property(&ident("background")).is_ok());
+    }
+
+    #[test]
+    fn underscores_are_translated_to_dashes() {
+        // `border_radius` is `border-radius` after to_css()
+        assert!(validate_property(&ident("border_radius")).is_ok());
+        assert!(validate_property(&ident("font_size")).is_ok());
+    }
+
+    #[test]
+    fn unknown_property_is_rejected() {
+        let err = validate_property(&ident("colur")).unwrap_err();
+        assert!(err.to_string().contains("colur"));
+        assert!(err.to_string().contains("not a recognized CSS property"));
+    }
+}

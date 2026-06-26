@@ -2,6 +2,13 @@
 name = "yew-sc-core"
 version = "0.1.0"
 edition = "2024"
+description = "Runtime helpers for yew-sc: style registry and ToCssVar trait."
+authors = ["Pierre Portal <pierreportal@proton.me>"]
+license = "MIT"
+repository = "https://github.com/pierreportal/yew-sc"
+homepage = "https://github.com/pierreportal/yew-sc"
+keywords = ["yew", "css", "styled-components", "wasm", "frontend"]
+categories = ["gui", "web-programming", "wasm"]
 
 [features]
 default = []

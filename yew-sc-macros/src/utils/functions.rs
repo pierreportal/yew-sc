@@ -49,3 +49,38 @@ pub fn validate_function(ident: &Ident) -> Result<()> {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use proc_macro2::Span;
+    use syn::Ident;
+
+    fn ident(name: &str) -> Ident {
+        Ident::new(name, Span::call_site())
+    }
+
+    #[test]
+    fn known_functions_accepted() {
+        for n in ["rgb", "rgba", "hsl", "calc", "var", "scale", "translate"] {
+            assert!(
+                validate_function(&ident(n)).is_ok(),
+                "expected `{n}` accepted"
+            );
+        }
+    }
+
+    #[test]
+    fn dashed_functions_use_underscores_in_rust() {
+        // `linear_gradient` in rust → `linear-gradient` after to_css().
+        assert!(validate_function(&ident("linear_gradient")).is_ok());
+        assert!(validate_function(&ident("cubic_bezier")).is_ok());
+    }
+
+    #[test]
+    fn unknown_function_rejected() {
+        let err = validate_function(&ident("rgbX")).unwrap_err();
+        assert!(err.to_string().contains("rgbX"));
+        assert!(err.to_string().contains("not a recognized CSS function"));
+    }
+}
