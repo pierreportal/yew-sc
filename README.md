@@ -75,7 +75,7 @@ Run the example with `trunk serve` from `example/`.
 * [x] Support primitive values (`px`, `rgb`, keywords, etc.)
 * [x] Compile-time validation of CSS property names
 * [x] Nested rules with `&:` syntax (e.g. `&:hover`, `&:active`)
-* [ ] Introduce `ToCss` trait for typed values
+* [x] Introduce `ToCss` trait for typed values
 
 ---
 
@@ -92,20 +92,20 @@ Run the example with `trunk serve` from `example/`.
 ### Layout / Structure
 
 * [x] `section`, `article`, `main`
-* [ ] `header`, `footer`, `nav`
+* [x] `header`, `footer`, `nav`
 
 ### Media
 
-* [ ] `img`
-* [ ] `video`, `audio`
+* [x] `img`
+* [x] `video`, `audio`
 
 ### Lists
 
-* [ ] `ul`, `ol`, `li`
+* [x] `ul`, `ol`, `li`
 
 ### Tables
 
-* [ ] `table`, `tr`, `td`, `th`
+* [x] `table`, `tr`, `td`, `th`
 
 ---
 
@@ -115,7 +115,7 @@ Run the example with `trunk serve` from `example/`.
 
   * `input`, `img`, `br`, `hr`, `meta`, `link`, etc.
 * [x] Generate self-closing tags (`<input />`)
-* [ ] Prevent children on void elements (with compile time error)
+* [x] Prevent children on void elements (with compile time error)
 
 ---
 
@@ -124,12 +124,12 @@ Run the example with `trunk serve` from `example/`.
 ### Global Attributes
 
 * [x] `class`
-* [ ] `id`
+* [x] `id`
 * [ ] `style`
-* [ ] `title`
-* [ ] `hidden`
-* [ ] `tabindex`
-* [ ] `role`
+* [x] `title`
+* [x] `hidden`
+* [x] `tabindex`
+* [x] `role`
 
 ### Events (Yew Callbacks)
 
@@ -177,8 +177,8 @@ Run the example with `trunk serve` from `example/`.
 
 ### Advanced Features
 
-* [ ] Generate hashed class names (instead of inline styles)
-* [ ] Global style registry (deduplicate styles)
+* [x] Generate hashed class names (instead of inline styles)
+* [x] Global style registry (deduplicate styles)
 * [ ] Extract CSS at compile time
 * [ ] SSR compatibility
 * [ ] Theming support
@@ -189,8 +189,8 @@ Run the example with `trunk serve` from `example/`.
 
 * [x] Validate style properties (compile-time check against known CSS properties)
 * [ ] Validate allowed attributes per tag
-* [ ] Emit compile-time errors for invalid usage
-* [ ] Prevent invalid HTML structures
+* [x] Emit compile-time errors for invalid usage
+* [x] Prevent invalid HTML structures
 
 ---
 
@@ -198,7 +198,7 @@ Run the example with `trunk serve` from `example/`.
 
 * [x] Separate macro crate (`yew-sc-macros`) and runtime crate (`yew-sc-core`)
 * [x] Modular parser + codegen structure
-* [ ] Define shared `ToCss` trait
+* [x] Define shared `ToCss` trait
 
 ---
 
