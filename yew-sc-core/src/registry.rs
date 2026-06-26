@@ -17,9 +17,8 @@ fn inject_style() {
 
     entries.sort_by_key(|(k, _)| *k); // deterministic order
 
-    for (class, css) in entries {
-        let css_full = format!(".{} {{ {} }}", class, css);
-        output.push_str(&css_full);
+    for (_class, css) in entries {
+        output.push_str(css);
     }
     let document = window().unwrap().document().unwrap();
 

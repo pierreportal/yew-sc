@@ -16,6 +16,16 @@ styled_component! {
 styled_component! {
     Button => button {
         border = none;
+        background = rgb(50,150,90);
+        color = white;
+        padding = 8px;
+        cursor = pointer;
+        &:hover {
+            background = rgb(70,180,110);
+        }
+        &:active {
+            transform = scale(0.97);
+        }
     }
 }
 styled_component! {

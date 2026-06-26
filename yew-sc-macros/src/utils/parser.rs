@@ -1,13 +1,23 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use proc_macro2::Span;
+use proc_macro2::{Span, TokenTree};
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{Ident, LitFloat, LitInt, LitStr, Result, Token, braced, parenthesized};
 
 pub struct CssBlock {
-    pub declarations: Vec<CssDeclaration>,
+    pub items: Vec<CssItem>,
+}
+
+pub enum CssItem {
+    Decl(CssDeclaration),
+    Nested(NestedRule),
+}
+
+pub struct NestedRule {
+    pub selector: String,
+    pub block: CssBlock,
 }
 
 pub struct CssDeclaration {
@@ -191,15 +201,64 @@ fn validate_function(ident: &Ident) -> Result<()> {
     }
 }
 
+fn parse_selector(input: ParseStream) -> Result<String> {
+    let mut tokens: Vec<TokenTree> = Vec::new();
+    while !input.is_empty() && !input.peek(syn::token::Brace) {
+        let tt: TokenTree = input.parse()?;
+        tokens.push(tt);
+    }
+    if input.is_empty() {
+        return Err(input.error("expected `{` after nested selector"));
+    }
+
+    fn is_glue_punct(tt: &TokenTree) -> bool {
+        // Punctuation that should be glued to adjacent tokens with no whitespace,
+        // e.g. `:` in `:hover`, `.` in `.title`, `#` in `#id`, `&` itself.
+        matches!(
+            tt,
+            TokenTree::Punct(p) if matches!(p.as_char(), ':' | '.' | '#' | '&' | '*' | '%')
+        )
+    }
+
+    let mut out = String::new();
+    for (i, tt) in tokens.iter().enumerate() {
+        if i > 0 {
+            let prev = &tokens[i - 1];
+            let glue = is_glue_punct(prev) || is_glue_punct(tt);
+            if !glue {
+                out.push(' ');
+            }
+        }
+        out.push_str(&tt.to_string());
+    }
+    Ok(out)
+}
+
+fn parse_block_items(content: ParseStream) -> Result<Vec<CssItem>> {
+    let mut items = Vec::new();
+    while !content.is_empty() {
+        if content.peek(Token![&]) {
+            let selector = parse_selector(content)?;
+            let inner;
+            braced!(inner in content);
+            let block = CssBlock {
+                items: parse_block_items(&inner)?,
+            };
+            items.push(CssItem::Nested(NestedRule { selector, block }));
+        } else {
+            items.push(CssItem::Decl(content.parse()?));
+        }
+    }
+    Ok(items)
+}
+
 impl Parse for CssBlock {
     fn parse(input: ParseStream) -> Result<Self> {
         let content;
         braced!(content in input);
-        let mut declarations = Vec::new();
-        while !content.is_empty() {
-            declarations.push(content.parse::<CssDeclaration>()?);
-        }
-        Ok(CssBlock { declarations })
+        Ok(CssBlock {
+            items: parse_block_items(&content)?,
+        })
     }
 }
 
@@ -268,12 +327,30 @@ impl CssValue {
 }
 
 impl CssBlock {
-    pub fn to_css(&self) -> String {
-        self.declarations
-            .iter()
-            .map(|d| format!("{}: {};", ident_to_css(&d.property), d.value.to_css()))
-            .collect::<Vec<_>>()
-            .join(" ")
+    pub fn to_rules(&self, parent: &str) -> Vec<(String, String)> {
+        let mut own = Vec::new();
+        let mut children = Vec::new();
+        for item in &self.items {
+            match item {
+                CssItem::Decl(d) => {
+                    own.push(format!(
+                        "{}: {};",
+                        ident_to_css(&d.property),
+                        d.value.to_css()
+                    ));
+                }
+                CssItem::Nested(rule) => {
+                    let resolved = rule.selector.replace('&', parent);
+                    children.extend(rule.block.to_rules(&resolved));
+                }
+            }
+        }
+        let mut rules = Vec::new();
+        if !own.is_empty() {
+            rules.push((parent.to_string(), own.join(" ")));
+        }
+        rules.extend(children);
+        rules
     }
 }
 

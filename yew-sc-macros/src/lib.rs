@@ -24,6 +24,21 @@ impl Parse for StyledComponentInput {
     }
 }
 
+const PLACEHOLDER: &str = "__YEW_SC_SELF__";
+
+fn build_css(css: &CssBlock) -> (String, String) {
+    let rules = css.to_rules(PLACEHOLDER);
+    let placeholder_css = rules
+        .iter()
+        .map(|(sel, body)| format!("{} {{ {} }}", sel, body))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let class_name = hash_css(&placeholder_css);
+    let selector = format!(".{}", class_name);
+    let full_css = placeholder_css.replace(PLACEHOLDER, &selector);
+    (class_name, full_css)
+}
+
 fn codegen_component(
     component_name: &syn::Ident,
     tag: &syn::Ident,
@@ -70,8 +85,7 @@ fn codegen_void_component(
 #[proc_macro]
 pub fn styled_component(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyledComponentInput);
-    let css_string = input.css.to_css();
-    let class_name = hash_css(&css_string);
+    let (class_name, css_string) = build_css(&input.css);
     let component_name = &input.name;
     let tag = &input.tag;
 
