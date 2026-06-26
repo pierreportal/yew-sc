@@ -63,7 +63,7 @@ generate independent components — styles are never merged across siblings.
 ```toml
 [dependencies]
 yew    = { version = "0.23", features = ["csr"] }
-yew-sc = "0.1"
+yew-sc = { path = "https://github.com/pierreportal/yew-sc" }
 ```
 
 Run the bundled demo with [`trunk`](https://trunkrs.dev):
