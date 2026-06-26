@@ -6,12 +6,12 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input,
 };
-use utils::parser::StyleParser;
+use utils::parser::{CssBlock, hash_css};
 
 struct StyledComponentInput {
     pub name: syn::Ident,
     pub tag: syn::Ident,
-    pub css: syn::Block,
+    pub css: CssBlock,
 }
 
 impl Parse for StyledComponentInput {
@@ -19,7 +19,7 @@ impl Parse for StyledComponentInput {
         let name: syn::Ident = input.parse()?;
         input.parse::<Token![=>]>()?;
         let tag: syn::Ident = input.parse()?;
-        let css: syn::Block = input.parse()?;
+        let css: CssBlock = input.parse()?;
         Ok(Self { name, tag, css })
     }
 }
@@ -70,8 +70,8 @@ fn codegen_void_component(
 #[proc_macro]
 pub fn styled_component(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as StyledComponentInput);
-    let css_string = StyleParser::block_to_css(&input.css);
-    let class_name = StyleParser::hash_css(&css_string);
+    let css_string = input.css.to_css();
+    let class_name = hash_css(&css_string);
     let component_name = &input.name;
     let tag = &input.tag;
 
