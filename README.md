@@ -145,24 +145,39 @@ Run the example with `trunk serve` from `example/`.
 
 #### `<a>`
 
-* [ ] `href`, `target`, `rel`
+* [x] `href`, `target`, `rel`
 
 #### `<img>`
 
-* [ ] `src`, `alt`, `width`, `height`
+* [x] `src`, `alt`, `width`, `height`
 
 #### `<input>`
 
-* [ ] `type`, `value`, `placeholder`
-* [ ] `checked`, `disabled`, `readonly`
+* [x] `type` (use `etype` — see note below), `value`, `placeholder`
+* [x] `checked`, `disabled`, `readonly`
 
 #### `<button>`
 
-* [ ] `type`, `disabled`
+* [x] `type` (use `etype` — see note below), `disabled`
+
+#### Note on `etype`
+
+The HTML `type` attribute is exposed on `<input>` and `<button>` as the prop
+`etype` (short for *element type*). `type` is a reserved keyword in Rust, so it
+cannot be used as a struct field name without the awkward raw-identifier
+escape `r#type`. The macro maps `etype` back to `type` in the generated HTML,
+so the rendered markup is unchanged:
+
+```rs
+html! {
+    <NameInput etype="text" placeholder="your name"/>
+    // renders: <input type="text" placeholder="your name" class="sc-..."/>
+}
+```
 
 #### `<form>`
 
-* [ ] `action`, `method`
+* [x] `action`, `method`
 
 ---
 
@@ -188,7 +203,7 @@ Run the example with `trunk serve` from `example/`.
 ### Validation & Safety
 
 * [x] Validate style properties (compile-time check against known CSS properties)
-* [ ] Validate allowed attributes per tag
+* [x] Validate allowed attributes per tag
 * [x] Emit compile-time errors for invalid usage
 * [x] Prevent invalid HTML structures
 
