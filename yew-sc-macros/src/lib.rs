@@ -54,7 +54,15 @@ fn codegen_component(
                 ::yew_sc::register_style(#class_name, #css_string)
             });
             ::yew::html! {
-                <#tag onclick={props.onclick.clone()} class={::yew::classes!(#class_name, props.class.clone())}>
+                <#tag
+                    class={::yew::classes!(#class_name, props.class.clone())}
+                    onclick={props.onclick.clone()}
+                    id={props.id.clone()}
+                    title={props.title.clone()}
+                    hidden={props.hidden}
+                    tabindex={props.tabindex.clone()}
+                    role={props.role.clone()}
+                >
                     {for props.children.iter()}
                 </#tag>
             }
@@ -76,7 +84,15 @@ fn codegen_void_component(
                 ::yew_sc::register_style(#class_name, #css_string)
             });
             ::yew::html! {
-                <#tag class={::yew::classes!(#class_name, props.class.clone())}/>
+                <#tag
+                    class={::yew::classes!(#class_name, props.class.clone())}
+                    onclick={props.onclick.clone()}
+                    id={props.id.clone()}
+                    title={props.title.clone()}
+                    hidden={props.hidden}
+                    tabindex={props.tabindex.clone()}
+                    role={props.role.clone()}
+                />
             }
         }
     };

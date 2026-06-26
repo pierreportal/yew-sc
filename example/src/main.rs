@@ -48,8 +48,8 @@ fn App() -> Html {
 
     html! {
         <StyledDiv>
-            <Title>{"Hey!"}</Title>
-            <NameInput/>
+            <Title id="page-title" role="heading">{"Hey!"}</Title>
+            <NameInput title="your name" tabindex="0"/>
             <Button onclick={handle_click}><>{*counter}</></Button>
         </StyledDiv>
     }

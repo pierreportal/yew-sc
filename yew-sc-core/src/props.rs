@@ -1,5 +1,5 @@
 use yew::{
-    Callback, Classes, MouseEvent,
+    AttrValue, Callback, Classes, MouseEvent,
     prelude::{Children, Properties},
 };
 
@@ -11,6 +11,16 @@ pub struct StyledComponentProps {
     pub class: Classes,
     #[prop_or_default]
     pub onclick: Callback<MouseEvent>,
+    #[prop_or_default]
+    pub id: Option<AttrValue>,
+    #[prop_or_default]
+    pub title: Option<AttrValue>,
+    #[prop_or_default]
+    pub hidden: bool,
+    #[prop_or_default]
+    pub tabindex: Option<AttrValue>,
+    #[prop_or_default]
+    pub role: Option<AttrValue>,
 }
 
 #[derive(Properties, PartialEq)]
@@ -19,4 +29,14 @@ pub struct StyledVoidComponentProps {
     pub class: Classes,
     #[prop_or_default]
     pub onclick: Callback<MouseEvent>,
+    #[prop_or_default]
+    pub id: Option<AttrValue>,
+    #[prop_or_default]
+    pub title: Option<AttrValue>,
+    #[prop_or_default]
+    pub hidden: bool,
+    #[prop_or_default]
+    pub tabindex: Option<AttrValue>,
+    #[prop_or_default]
+    pub role: Option<AttrValue>,
 }
