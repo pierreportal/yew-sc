@@ -1,17 +1,29 @@
+<p align="center">
+  <img src="example/assets/yew_logo.svg" alt="Yew logo" width="120"/>
+</p>
 
+<h1 align="center">yew-sc</h1>
 
-![Yew logo](example/assets/yew_logo.svg) 
-# Styled Components for Yew 💅
+<p align="center"><em>Styled components for <a href="https://yew.rs">Yew</a>, in the spirit of <code>styled-components</code> — but compile-time, type-checked, and zero-runtime-CSS-string-building.</em></p>
 
+<p align="center">
+  <a href="#"><img alt="crate" src="https://img.shields.io/badge/crate-yew--sc-orange"></a>
+  <a href="LICENSE"><img alt="license" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <a href="#"><img alt="status" src="https://img.shields.io/badge/status-experimental-yellow"></a>
+</p>
 
+---
 
-### Usage:
-```rs
+## What it does
+
+`yew-sc` is a procedural macro that turns this:
+
+```rust
 use yew::prelude::*;
 use yew_sc::styled_component;
 
 styled_component! {
-    StyledDiv => div {
+    Card => div {
         border = "solid 3px green";
         background = rgb(100, 65, 87);
         padding = 10px;
@@ -23,115 +35,133 @@ styled_component! {
         color = white;
         padding = 8px;
         cursor = pointer;
-        &:hover {
-            background = rgb(70, 180, 110);
-        }
-        &:active {
-            transform = scale(0.97);
-        }
+        &:hover  { background = rgb(70, 180, 110); }
+        &:active { transform = scale(0.97); }
     }
 }
 
 #[component]
 fn App() -> Html {
     html! {
-        <StyledDiv>
+        <Card>
             <Button>{"Click me"}</Button>
-        </StyledDiv>
+        </Card>
     }
 }
 ```
 
-A single `styled_component!` invocation accepts any number of `Name => tag { ... }`
-entries back-to-back. They share a parse pass but generate independent
-components — no styles are merged across siblings.
+…into real Yew function components with hashed CSS classes (`ysc-…`) that are
+registered once and shared across renders. Style values are validated at
+compile time — typos like `colur = red` won't make it past `cargo check`.
 
-## Workspace Layout
+A single `styled_component!` invocation accepts any number of
+`Name => tag { ... }` entries back-to-back. They share a parse pass but
+generate independent components — styles are never merged across siblings.
 
+## Install
+
+```toml
+[dependencies]
+yew    = { version = "0.23", features = ["csr"] }
+yew-sc = "0.1"
 ```
-yew-sc/
-├── yew-sc-core/    # runtime: style registry, helpers
-├── yew-sc-macros/  # `styled_component!` macro: parser + codegen
-└── example/        # Yew app demonstrating the macro
+
+Run the bundled demo with [`trunk`](https://trunkrs.dev):
+
+```sh
+cd example && trunk serve
 ```
 
-Run the example with `trunk serve` from `example/`.
+## Features
 
-### Dynamic styles
+- **Compile-time CSS validation** — property names are checked against a known
+  set; invalid keys are a build error, not a runtime surprise.
+- **Compile-time element validation** — only attributes valid for the chosen
+  HTML tag are accepted; passing `href` to a `button` won't compile.
+- **Hashed class names** — each component compiles to one stable
+  `ysc-<hash>` class, registered once on first render.
+- **Nested rules** — `&:hover`, `&:active`, etc. via the `&:` prefix.
+- **Dynamic values without re-registration** — `$name` and `${ expr }` become
+  CSS custom properties; the stylesheet stays static.
+- **Bring your own props struct** — opt into full control over the component's
+  prop surface with `#[styled_props]`.
+- **Sensible defaults** — `class`, `children`, `onclick`, `id`, `title`,
+  `hidden`, `tabindex`, `role` are forwarded automatically.
+
+## Dynamic styles
 
 Reference a dynamic value with `$name` inside the style block and the macro
-will generate a matching prop on the component. At render time the prop value
-is injected as a CSS custom property on the element's `style` attribute. The
-CSS itself stays as one static hashed class — there is no per-render style
+generates a matching prop on the component. At render time, the prop value is
+injected as a CSS custom property on the element's `style` attribute. The CSS
+itself remains a single static hashed class — there is **no** per-render style
 registration.
 
-```rs
+```rust
 styled_component! {
     Button => button {
         background = $bg;
         color = $fg;
         padding = 8px;
-        &:hover {
-            background = $bg_hover;
-        }
+        &:hover { background = $bg_hover; }
     }
 }
 
 #[component]
 fn App() -> Html {
     html! {
-        <Button bg="rebeccapurple" fg="white" bg_hover="indigo">{"click"}</Button>
+        <Button bg="rebeccapurple" fg="white" bg_hover="indigo">
+            {"click"}
+        </Button>
     }
 }
 ```
 
 What gets emitted:
 
-- In CSS: `$bg` is rewritten to `var(--bg)`. So the generated stylesheet contains
+- In CSS, `$bg` is rewritten to `var(--bg)`, so the stylesheet contains
   `background: var(--bg);` and `background: var(--bg-hover);` inside `:hover`.
 - On the element: `style="--bg: rebeccapurple; --fg: white; --bg-hover: indigo;"`.
 
 Rust identifier underscores become dashes in the emitted CSS, so the Rust prop
 `bg_hover` corresponds to the CSS variable `--bg-hover`.
 
-#### Inline Rust expressions: `${ expr }`
+### Inline Rust expressions: `${ expr }`
 
 For conditional or computed values, embed any Rust expression that evaluates
 to a `ToCssVar` value:
 
-```rs
+```rust
 styled_component! {
     MyButton<MyButtonProps> => button {
         background = ${ if props.is_danger { "crimson" } else { "steelblue" } };
-        opacity = ${ if props.disabled { 0.5 } else { 1.0 } };
+        opacity    = ${ if props.disabled  { 0.5 }      else { 1.0 } };
     }
 }
 ```
 
-The macro lowers each `${ ... }` to a synthetic CSS custom property (e.g.
-`var(--__yew-sc-expr-0)`) and evaluates the expression once per render to set
-its value on the element's `style` attribute. The stylesheet itself stays
-static — only the inline custom-property values change per render.
+Each `${ ... }` is lowered to a synthetic CSS custom property (e.g.
+`var(--__yew-sc-expr-0)`) and evaluated once per render to set its value on the
+element's `style` attribute. The stylesheet stays static — only the inline
+custom-property values change per render.
 
 Notes:
 
-- The expression body is real Rust, so `if` arms need braces and matching
-  types (use `String::from(...)` or a common return type if the arms differ).
-- Anything the expression references must be in scope at the call site of the
-  generated component — `props.<field>` is the common case.
-- The expression evaluates lazily inside an `if let Some(...) = ToCssVar::...`
-  guard, so returning `None` (e.g. from an `Option<T>` branch) omits the
+- The expression body is real Rust: `if` arms need braces and matching
+  types (use `String::from(...)` or a common return type if arms differ).
+- Anything the expression references must be in scope at the generated
+  component's call site — `props.<field>` is the common case.
+- The expression is evaluated inside an `if let Some(...) = ToCssVar::...`
+  guard, so returning `None` (e.g. from an `Option<T>` branch) **omits** that
   variable for that render.
 
-#### Bring-your-own props struct
+## Bring-your-own props struct
 
-For full control over the component's props — including transient
-styling-only props that don't map to HTML attributes — provide a props type
-between angle brackets. Annotate the struct with `#[styled_props]` to inject
-the base fields (`class`, `onclick`, `children`, `id`, `title`, `hidden`,
-`tabindex`, `role`) automatically:
+For full control — including transient, styling-only props that don't map to
+HTML attributes — provide a props type between angle brackets. Annotate the
+struct with `#[styled_props]` to inject the base fields (`class`, `onclick`,
+`children`, `id`, `title`, `hidden`, `tabindex`, `role`) automatically:
 
-```rs
+```rust
 use yew_sc::{styled_component, styled_props};
 
 #[styled_props]
@@ -143,26 +173,23 @@ pub struct MyButtonProps {
 styled_component! {
     MyButton<MyButtonProps> => button {
         background = ${ if props.is_danger { "crimson" } else { "steelblue" } };
-        color = white;
+        color      = white;
     }
 }
 
-html! {
-    <MyButton is_danger=true>{"danger"}</MyButton>
-}
+html! { <MyButton is_danger=true>{"danger"}</MyButton> }
 ```
 
 `#[styled_props]` adds the base fields if you haven't declared them, then
-derives `Properties` and `PartialEq` (skips the derive if your struct already
-has it). You only write fields the macro doesn't know about — typically the
-transient styling props plus any element-specific attrs you want forwarded.
+derives `Properties` and `PartialEq` (skipped if your struct already has
+either). You only write the fields the macro doesn't already know about.
 
-Rules for user-provided props structs:
+Rules:
 
-- The macro does **not** add the tag's element-specific attrs (`href`, `etype`,
-  `disabled`, etc.). If you want them forwarded, declare them yourself and
-  thread them through your own render path — this mode hands the macro
-  responsibility back to you.
+- The macro does **not** add tag-specific attrs (`href`, `etype`, `disabled`,
+  …) when you bring your own struct. Declare them yourself and forward them
+  through your render path — this mode hands the macro responsibility back to
+  you.
 - Every `$name` referenced in the style block must exist as a field on your
   struct, and its type must implement `ToCssVar`. Built-in impls cover
   `bool`, numeric types, `String`, `&str`, `AttrValue`, and `Option<T>` where
@@ -171,179 +198,57 @@ Rules for user-provided props structs:
   as normal Yew props (`is_danger=true`). The `$` prefix lives only inside
   the `styled_component!` style block.
 
-## TODO
+## Supported HTML
 
-### Core
+| Category    | Tags                                                       |
+|-------------|------------------------------------------------------------|
+| Text        | `div`, `span`, `p`, `h1`–`h6`                              |
+| Form        | `button`, `input`, `textarea`, `form`                      |
+| Structural  | `section`, `article`, `main`, `header`, `footer`, `nav`    |
+| Media       | `img`, `video`, `audio`                                    |
+| Lists       | `ul`, `ol`, `li`                                           |
+| Tables      | `table`, `tr`, `td`, `th`                                  |
 
-* [x] Implement `styled_component!` parsing (tag, name, styles)
-* [x] Generate Yew `function_component`
-* [x] Support children (`Html`)
-* [x] Merge user `class` with generated styles
-* [x] Support event handlers (`onclick`, etc.)
+Void elements (`input`, `img`, `br`, `hr`, `meta`, `link`, …) render
+self-closing and refuse children at compile time.
 
----
+### Element-specific attributes
 
-### Styling System
+- `<a>` — `href`, `target`, `rel`
+- `<img>` — `src`, `alt`, `width`, `height`
+- `<input>` — `etype`, `value`, `placeholder`, `checked`, `disabled`, `readonly`
+- `<button>` — `etype`, `disabled`
+- `<form>` — `action`, `method`
 
-* [x] Parse key/value style pairs
-* [x] Convert styles to inline CSS string
-* [x] Support primitive values (`px`, `rgb`, keywords, etc.)
-* [x] Compile-time validation of CSS property names
-* [x] Nested rules with `&:` syntax (e.g. `&:hover`, `&:active`)
-* [x] Introduce `ToCss` trait for typed values
-
----
-
-### HTML Tag Support
-
-### Core Elements
-
-* [x] `div`, `span`, `p`
-* [x] `h1` → `h6`
-* [x] `button`
-* [x] `input`
-* [x] `textarea`
-
-### Layout / Structure
-
-* [x] `section`, `article`, `main`
-* [x] `header`, `footer`, `nav`
-
-### Media
-
-* [x] `img`
-* [x] `video`, `audio`
-
-### Lists
-
-* [x] `ul`, `ol`, `li`
-
-### Tables
-
-* [x] `table`, `tr`, `td`, `th`
-
----
-
-### Void Elements Handling
-
-* [x] Detect void elements:
-
-  * `input`, `img`, `br`, `hr`, `meta`, `link`, etc.
-* [x] Generate self-closing tags (`<input />`)
-* [x] Prevent children on void elements (with compile time error)
-
----
-
-### Attributes Support
-
-### Global Attributes
-
-* [x] `class`
-* [x] `id`
-* [ ] `style`
-* [x] `title`
-* [x] `hidden`
-* [x] `tabindex`
-* [x] `role`
-
-### Events (Yew Callbacks)
-
-* [x] `onclick`
-* [ ] `oninput`
-* [ ] `onchange`
-* [ ] `onblur`
-* [ ] `onfocus`
-* [ ] `onkeydown`
-* [ ] `onkeyup`
-
-### Element-Specific
-
-#### `<a>`
-
-* [x] `href`, `target`, `rel`
-
-#### `<img>`
-
-* [x] `src`, `alt`, `width`, `height`
-
-#### `<input>`
-
-* [x] `type` (use `etype` — see note below), `value`, `placeholder`
-* [x] `checked`, `disabled`, `readonly`
-
-#### `<button>`
-
-* [x] `type` (use `etype` — see note below), `disabled`
-
-#### Note on `etype`
+### A note on `etype`
 
 The HTML `type` attribute is exposed on `<input>` and `<button>` as the prop
 `etype` (short for *element type*). `type` is a reserved keyword in Rust, so it
-cannot be used as a struct field name without the awkward raw-identifier
-escape `r#type`. The macro maps `etype` back to `type` in the generated HTML,
-so the rendered markup is unchanged:
+cannot be used as a struct field name without `r#type`. The macro maps `etype`
+back to `type` in the generated HTML, so the rendered markup is unchanged:
 
-```rs
+```rust
 html! {
     <NameInput etype="text" placeholder="your name"/>
     // renders: <input type="text" placeholder="your name" class="ysc-..."/>
 }
 ```
 
-#### `<form>`
+## Workspace layout
 
-* [x] `action`, `method`
+```
+yew-sc/
+├── src/             # facade crate that re-exports the macro + runtime helpers
+├── yew-sc-core/     # runtime: style registry, ToCssVar trait, helpers
+├── yew-sc-macros/   # proc-macros: parser + codegen for `styled_component!`
+└── example/         # Yew app demonstrating the macro
+```
 
----
+## Status
 
-### DX Improvements
+Experimental — the API may break before `0.2`. Feedback, issues, and PRs are
+welcome.
 
-* [ ] Allow ergonomic children (`{ counter.to_string() }`)
-* [ ] Improve error messages from macro
-* [ ] Provide helper utilities (e.g. `text!()` or `<Text />`)
-* [ ] Auto-format style keys (snake_case → kebab-case)
+## License
 
----
-
-### Advanced Features
-
-* [x] Generate hashed class names (instead of inline styles)
-* [x] Global style registry (deduplicate styles)
-* [ ] Extract CSS at compile time
-* [ ] SSR compatibility
-* [ ] Theming support
-
----
-
-### Validation & Safety
-
-* [x] Validate style properties (compile-time check against known CSS properties)
-* [x] Validate allowed attributes per tag
-* [x] Emit compile-time errors for invalid usage
-* [x] Prevent invalid HTML structures
-
----
-
-### Architecture
-
-* [x] Separate macro crate (`yew-sc-macros`) and runtime crate (`yew-sc-core`)
-* [x] Modular parser + codegen structure
-* [x] Define shared `ToCss` trait
-
----
-
-### Documentation
-
-* [ ] Basic usage examples
-* [ ] Styled component patterns
-* [ ] Integration with Yew apps
-* [ ] Comparison with React styled-components
-
----
-
-### Future Ideas
-
-* [ ] Custom DSL for styles (e.g. `padding: 10px`)
-* [ ] Animation support
-* [ ] Devtools / debug output
-* [ ] Plugin system for extensions
+MIT
