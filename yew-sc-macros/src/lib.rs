@@ -41,63 +41,111 @@ fn build_css(css: &CssBlock) -> (String, String) {
     (class_name, full_css)
 }
 
-fn codegen_component(
+fn codegen(
     component_name: &syn::Ident,
     tag: &syn::Ident,
     class_name: String,
     css_string: String,
+    props_ident: proc_macro2::TokenStream,
+    extra_attrs: proc_macro2::TokenStream,
+    is_void: bool,
 ) -> TokenStream {
-    let expended = quote::quote! {
-        #[::yew::component]
-        pub fn #component_name(props: &::yew_sc::StyledComponentProps) -> ::yew::Html {
-            ::yew::use_effect(|| {
-                ::yew_sc::register_style(#class_name, #css_string)
-            });
-            ::yew::html! {
-                <#tag
-                    class={::yew::classes!(#class_name, props.class.clone())}
-                    onclick={props.onclick.clone()}
-                    id={props.id.clone()}
-                    title={props.title.clone()}
-                    hidden={props.hidden}
-                    tabindex={props.tabindex.clone()}
-                    role={props.role.clone()}
-                >
-                    {for props.children.iter()}
-                </#tag>
-            }
+    let body = if is_void {
+        quote::quote! {
+            <#tag
+                class={::yew::classes!(#class_name, props.class.clone())}
+                onclick={props.onclick.clone()}
+                id={props.id.clone()}
+                title={props.title.clone()}
+                hidden={props.hidden}
+                tabindex={props.tabindex.clone()}
+                role={props.role.clone()}
+                #extra_attrs
+            />
+        }
+    } else {
+        quote::quote! {
+            <#tag
+                class={::yew::classes!(#class_name, props.class.clone())}
+                onclick={props.onclick.clone()}
+                id={props.id.clone()}
+                title={props.title.clone()}
+                hidden={props.hidden}
+                tabindex={props.tabindex.clone()}
+                role={props.role.clone()}
+                #extra_attrs
+            >
+                {for props.children.iter()}
+            </#tag>
         }
     };
 
-    expended.into()
+    let expanded = quote::quote! {
+        #[::yew::component]
+        pub fn #component_name(props: &::yew_sc::#props_ident) -> ::yew::Html {
+            ::yew::use_effect(|| {
+                ::yew_sc::register_style(#class_name, #css_string)
+            });
+            ::yew::html! { #body }
+        }
+    };
+
+    expanded.into()
 }
-fn codegen_void_component(
-    component_name: &syn::Ident,
-    tag: &syn::Ident,
-    class_name: String,
-    css_string: String,
-) -> TokenStream {
-    let expended = quote::quote! {
-        #[::yew::component]
-        pub fn #component_name(props: &::yew_sc::StyledVoidComponentProps) -> ::yew::Html {
-            ::yew::use_effect(|| {
-                ::yew_sc::register_style(#class_name, #css_string)
-            });
-            ::yew::html! {
-                <#tag
-                    class={::yew::classes!(#class_name, props.class.clone())}
-                    onclick={props.onclick.clone()}
-                    id={props.id.clone()}
-                    title={props.title.clone()}
-                    hidden={props.hidden}
-                    tabindex={props.tabindex.clone()}
-                    role={props.role.clone()}
-                />
-            }
-        }
-    };
 
-    expended.into()
+fn props_for_tag(tag: &str) -> (proc_macro2::TokenStream, proc_macro2::TokenStream, bool) {
+    use quote::quote;
+    match tag {
+        "a" => (
+            quote!(StyledAnchorProps),
+            quote! {
+                href={props.href.clone()}
+                target={props.target.clone()}
+                rel={props.rel.clone()}
+            },
+            false,
+        ),
+        "button" => (
+            quote!(StyledButtonProps),
+            quote! {
+                type={props.etype.clone()}
+                disabled={props.disabled}
+            },
+            false,
+        ),
+        "form" => (
+            quote!(StyledFormProps),
+            quote! {
+                action={props.action.clone()}
+                method={props.method.clone()}
+            },
+            false,
+        ),
+        "img" => (
+            quote!(StyledImgProps),
+            quote! {
+                src={props.src.clone()}
+                alt={props.alt.clone()}
+                width={props.width.clone()}
+                height={props.height.clone()}
+            },
+            true,
+        ),
+        "input" => (
+            quote!(StyledInputProps),
+            quote! {
+                type={props.etype.clone()}
+                value={props.value.clone()}
+                placeholder={props.placeholder.clone()}
+                checked={props.checked}
+                disabled={props.disabled}
+                readonly={props.readonly}
+            },
+            true,
+        ),
+        other if is_void_tag(other) => (quote!(StyledVoidComponentProps), quote!(), true),
+        _ => (quote!(StyledComponentProps), quote!(), false),
+    }
 }
 
 #[proc_macro]
@@ -107,9 +155,14 @@ pub fn styled_component(input: TokenStream) -> TokenStream {
     let component_name = &input.name;
     let tag = &input.tag;
 
-    if is_void_tag(&tag.to_string()) {
-        codegen_void_component(component_name, tag, class_name, css_string)
-    } else {
-        codegen_component(component_name, tag, class_name, css_string)
-    }
+    let (props_ident, extra_attrs, is_void) = props_for_tag(&tag.to_string());
+    codegen(
+        component_name,
+        tag,
+        class_name,
+        css_string,
+        props_ident,
+        extra_attrs,
+        is_void,
+    )
 }
