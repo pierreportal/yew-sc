@@ -1,7 +1,5 @@
 use yew::prelude::*;
-use yew_sc_core::props::{StyledComponentProps, StyledVoidComponentProps};
-use yew_sc_core::registry::register_style;
-use yew_sc_macros::styled_component;
+use yew_sc::styled_component;
 
 styled_component! {
     StyledDiv => div {

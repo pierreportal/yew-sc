@@ -31,13 +31,13 @@ fn codegen_component(
     css_string: String,
 ) -> TokenStream {
     let expended = quote::quote! {
-        #[yew::component]
-        pub fn #component_name(props: &StyledComponentProps) -> yew::Html {
-            yew::use_effect(|| {
-                register_style(#class_name, #css_string)
+        #[::yew::component]
+        pub fn #component_name(props: &::yew_sc::StyledComponentProps) -> ::yew::Html {
+            ::yew::use_effect(|| {
+                ::yew_sc::register_style(#class_name, #css_string)
             });
-            yew::html! {
-                <#tag onclick={props.onclick.clone()} class={classes!(#class_name, props.class.clone())}>
+            ::yew::html! {
+                <#tag onclick={props.onclick.clone()} class={::yew::classes!(#class_name, props.class.clone())}>
                     {for props.children.iter()}
                 </#tag>
             }
@@ -53,13 +53,13 @@ fn codegen_void_component(
     css_string: String,
 ) -> TokenStream {
     let expended = quote::quote! {
-        #[yew::component]
-        pub fn #component_name(props: &StyledVoidComponentProps) -> yew::Html {
-            yew::use_effect(|| {
-                register_style(#class_name, #css_string)
+        #[::yew::component]
+        pub fn #component_name(props: &::yew_sc::StyledVoidComponentProps) -> ::yew::Html {
+            ::yew::use_effect(|| {
+                ::yew_sc::register_style(#class_name, #css_string)
             });
-            yew::html! {
-                <#tag class={classes!(#class_name, props.class.clone())}/>
+            ::yew::html! {
+                <#tag class={::yew::classes!(#class_name, props.class.clone())}/>
             }
         }
     };
