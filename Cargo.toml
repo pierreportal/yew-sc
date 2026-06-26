@@ -3,6 +3,7 @@ name = "yew-sc"
 version = "0.1.0"
 edition = "2024"
 description = "Styled Components for Yew"
+authors = ["Pierre Portal <pierreportal@proton.me>"]
 license = "MIT"
 
 [lib]
