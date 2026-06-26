@@ -198,5 +198,5 @@ impl CssBlock {
 pub fn hash_css(css: &str) -> String {
     let mut hasher = DefaultHasher::new();
     css.hash(&mut hasher);
-    format!("sc-{:x}", hasher.finish())
+    format!("ysc-{:x}", hasher.finish())
 }

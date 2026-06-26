@@ -171,7 +171,7 @@ so the rendered markup is unchanged:
 ```rs
 html! {
     <NameInput etype="text" placeholder="your name"/>
-    // renders: <input type="text" placeholder="your name" class="sc-..."/>
+    // renders: <input type="text" placeholder="your name" class="ysc-..."/>
 }
 ```
 
