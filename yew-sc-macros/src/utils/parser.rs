@@ -234,10 +234,18 @@ fn parse_selector(input: ParseStream) -> Result<String> {
     Ok(out)
 }
 
+fn starts_with_ampersand(input: ParseStream) -> bool {
+    input
+        .cursor()
+        .punct()
+        .map(|(p, _)| p.as_char() == '&')
+        .unwrap_or(false)
+}
+
 fn parse_block_items(content: ParseStream) -> Result<Vec<CssItem>> {
     let mut items = Vec::new();
     while !content.is_empty() {
-        if content.peek(Token![&]) {
+        if starts_with_ampersand(content) {
             let selector = parse_selector(content)?;
             let inner;
             braced!(inner in content);
