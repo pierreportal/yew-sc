@@ -1,30 +1,60 @@
 
 
-![Yew logo](assets/yew_logo.svg) 
+![Yew logo](example/assets/yew_logo.svg) 
 # Styled Components for Yew 💅
 
 
 
 ### Usage:
 ```rs
+use yew::prelude::*;
+use yew_sc::styled_component;
 
 styled_component! {
-    MyStyledDiv => div {
-        border = "solid 1px red";
+    StyledDiv => div {
+        border = "solid 3px green";
+        background = rgb(100, 65, 87);
         padding = 10px;
-        color = green;
+    }
+}
+
+styled_component! {
+    Button => button {
+        border = none;
+        background = rgb(50, 150, 90);
+        color = white;
+        padding = 8px;
+        cursor = pointer;
+        &:hover {
+            background = rgb(70, 180, 110);
+        }
+        &:active {
+            transform = scale(0.97);
+        }
     }
 }
 
 #[component]
 fn App() -> Html {
     html! {
-        <MyStyledDiv>
-            <p>{"Hello Yew-sc!"}</p>
-        </MyStyledDiv>
+        <StyledDiv>
+            <Button>{"Click me"}</Button>
+        </StyledDiv>
     }
 }
 ```
+
+## Workspace Layout
+
+```
+yew-sc/
+├── yew-sc-core/    # runtime: style registry, helpers
+├── yew-sc-macros/  # `styled_component!` macro: parser + codegen
+├── example/        # Yew app demonstrating the macro
+└── xtask/          # workspace tasks
+```
+
+Run the example with `trunk serve` from `example/`.
 
 ## TODO
 
@@ -42,8 +72,10 @@ fn App() -> Html {
 
 * [x] Parse key/value style pairs
 * [x] Convert styles to inline CSS string
+* [x] Support primitive values (`px`, `rgb`, keywords, etc.)
+* [x] Compile-time validation of CSS property names
+* [x] Nested rules with `&:` syntax (e.g. `&:hover`, `&:active`)
 * [ ] Introduce `ToCss` trait for typed values
-* [ ] Support primitive values (`px`, `rgb`, etc.)
 
 ---
 
@@ -155,7 +187,7 @@ fn App() -> Html {
 
 ### Validation & Safety
 
-* [ ] Validate style properties
+* [x] Validate style properties (compile-time check against known CSS properties)
 * [ ] Validate allowed attributes per tag
 * [ ] Emit compile-time errors for invalid usage
 * [ ] Prevent invalid HTML structures
@@ -164,9 +196,9 @@ fn App() -> Html {
 
 ### Architecture
 
-* [ ] Separate macro crate and runtime crate
+* [x] Separate macro crate (`yew-sc-macros`) and runtime crate (`yew-sc-core`)
+* [x] Modular parser + codegen structure
 * [ ] Define shared `ToCss` trait
-* [ ] Modular parser + codegen structure
 
 ---
 
