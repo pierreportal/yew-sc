@@ -7,6 +7,7 @@ use syn::{
     parse_macro_input,
 };
 use utils::parser::{CssBlock, hash_css};
+use utils::tags::{is_void_tag, validate_tag};
 
 struct StyledComponentInput {
     pub name: syn::Ident,
@@ -19,6 +20,7 @@ impl Parse for StyledComponentInput {
         let name: syn::Ident = input.parse()?;
         input.parse::<Token![=>]>()?;
         let tag: syn::Ident = input.parse()?;
+        validate_tag(&tag)?;
         let css: CssBlock = input.parse()?;
         Ok(Self { name, tag, css })
     }
@@ -89,12 +91,7 @@ pub fn styled_component(input: TokenStream) -> TokenStream {
     let component_name = &input.name;
     let tag = &input.tag;
 
-    let is_void = matches!(
-        tag.to_string().as_str(),
-        "input" | "img" | "br" | "hr" | "meta" | "link"
-    );
-
-    if is_void {
+    if is_void_tag(&tag.to_string()) {
         codegen_void_component(component_name, tag, class_name, css_string)
     } else {
         codegen_component(component_name, tag, class_name, css_string)

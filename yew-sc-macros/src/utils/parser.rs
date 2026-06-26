@@ -1,10 +1,14 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-use proc_macro2::{Span, TokenTree};
+use proc_macro2::TokenTree;
 use syn::parse::{Parse, ParseStream};
 use syn::punctuated::Punctuated;
 use syn::{Ident, LitFloat, LitInt, LitStr, Result, Token, braced, parenthesized};
+
+use super::functions::validate_function;
+use super::properties::validate_property;
+use super::units::validate_unit;
 
 pub struct CssBlock {
     pub items: Vec<CssItem>,
@@ -33,172 +37,8 @@ pub enum CssValue {
     Function { name: Ident, args: Vec<CssValue> },
 }
 
-const KNOWN_PROPERTIES: &[&str] = &[
-    "align-items",
-    "align-self",
-    "background",
-    "background-color",
-    "background-image",
-    "border",
-    "border-bottom",
-    "border-color",
-    "border-left",
-    "border-radius",
-    "border-right",
-    "border-style",
-    "border-top",
-    "border-width",
-    "bottom",
-    "box-shadow",
-    "box-sizing",
-    "color",
-    "cursor",
-    "display",
-    "flex",
-    "flex-basis",
-    "flex-direction",
-    "flex-grow",
-    "flex-shrink",
-    "flex-wrap",
-    "font",
-    "font-family",
-    "font-size",
-    "font-style",
-    "font-weight",
-    "gap",
-    "grid",
-    "grid-area",
-    "grid-column",
-    "grid-gap",
-    "grid-row",
-    "grid-template",
-    "grid-template-columns",
-    "grid-template-rows",
-    "height",
-    "justify-content",
-    "left",
-    "letter-spacing",
-    "line-height",
-    "list-style",
-    "margin",
-    "margin-bottom",
-    "margin-left",
-    "margin-right",
-    "margin-top",
-    "max-height",
-    "max-width",
-    "min-height",
-    "min-width",
-    "opacity",
-    "outline",
-    "outline-color",
-    "outline-offset",
-    "outline-style",
-    "outline-width",
-    "overflow",
-    "overflow-x",
-    "overflow-y",
-    "padding",
-    "padding-bottom",
-    "padding-left",
-    "padding-right",
-    "padding-top",
-    "position",
-    "right",
-    "text-align",
-    "text-decoration",
-    "text-overflow",
-    "text-transform",
-    "top",
-    "transform",
-    "transition",
-    "user-select",
-    "vertical-align",
-    "visibility",
-    "white-space",
-    "width",
-    "word-break",
-    "z-index",
-];
-
-const KNOWN_UNITS: &[&str] = &[
-    "px", "em", "rem", "vh", "vw", "vmin", "vmax", "pt", "pc", "ch", "ex", "cm", "mm", "in", "fr",
-    "s", "ms", "deg", "rad", "turn",
-];
-
-const KNOWN_FUNCTIONS: &[&str] = &[
-    "rgb",
-    "rgba",
-    "hsl",
-    "hsla",
-    "calc",
-    "var",
-    "url",
-    "linear-gradient",
-    "radial-gradient",
-    "conic-gradient",
-    "translate",
-    "translateX",
-    "translateY",
-    "translateZ",
-    "translate3d",
-    "rotate",
-    "rotateX",
-    "rotateY",
-    "rotateZ",
-    "scale",
-    "scaleX",
-    "scaleY",
-    "scaleZ",
-    "skew",
-    "skewX",
-    "skewY",
-    "matrix",
-    "matrix3d",
-    "cubic-bezier",
-    "steps",
-    "min",
-    "max",
-    "clamp",
-];
-
 fn ident_to_css(ident: &Ident) -> String {
     ident.to_string().replace('_', "-")
-}
-
-fn validate_property(ident: &Ident) -> Result<()> {
-    let name = ident_to_css(ident);
-    if KNOWN_PROPERTIES.contains(&name.as_str()) {
-        Ok(())
-    } else {
-        Err(syn::Error::new(
-            ident.span(),
-            format!("`{name}` is not a recognized CSS property"),
-        ))
-    }
-}
-
-fn validate_unit(suffix: &str, span: Span) -> Result<()> {
-    if suffix.is_empty() || KNOWN_UNITS.contains(&suffix) {
-        Ok(())
-    } else {
-        Err(syn::Error::new(
-            span,
-            format!("`{suffix}` is not a recognized CSS unit"),
-        ))
-    }
-}
-
-fn validate_function(ident: &Ident) -> Result<()> {
-    let name = ident_to_css(ident);
-    if KNOWN_FUNCTIONS.contains(&name.as_str()) {
-        Ok(())
-    } else {
-        Err(syn::Error::new(
-            ident.span(),
-            format!("`{name}` is not a recognized CSS function"),
-        ))
-    }
 }
 
 fn parse_selector(input: ParseStream) -> Result<String> {
