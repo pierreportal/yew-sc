@@ -1,0 +1,14 @@
+[package]
+name = "xtask"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "yew-sc-extract"
+path = "src/main.rs"
+
+[dependencies]
+wasmparser = "0.218"
+
+[workspace]
