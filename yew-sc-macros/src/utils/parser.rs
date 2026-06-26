@@ -36,6 +36,8 @@ pub enum CssValue {
     Int(LitInt),
     Float(LitFloat),
     Function { name: Ident, args: Vec<CssValue> },
+    Var(Ident),
+    Expr(syn::Expr),
 }
 
 fn parse_selector(input: ParseStream) -> Result<String> {
@@ -118,8 +120,27 @@ impl Parse for CssDeclaration {
     }
 }
 
+fn peek_dollar(input: ParseStream) -> bool {
+    input
+        .cursor()
+        .punct()
+        .map(|(p, _)| p.as_char() == '$')
+        .unwrap_or(false)
+}
+
 impl Parse for CssValue {
     fn parse(input: ParseStream) -> Result<Self> {
+        if peek_dollar(input) {
+            input.parse::<Token![$]>()?;
+            if input.peek(syn::token::Brace) {
+                let inner;
+                braced!(inner in input);
+                let expr: syn::Expr = inner.parse()?;
+                return Ok(CssValue::Expr(expr));
+            }
+            let name: Ident = input.parse()?;
+            return Ok(CssValue::Var(name));
+        }
         let lookahead = input.lookahead1();
         if lookahead.peek(LitStr) {
             Ok(CssValue::Str(input.parse()?))
@@ -167,11 +188,84 @@ impl ToCss for CssValue {
                     .join(", ");
                 format!("{}({})", name.to_css(), args_str)
             }
+            CssValue::Var(id) => format!("var(--{})", id.to_css()),
+            CssValue::Expr(_) => {
+                panic!("CssValue::Expr should be lowered to CssValue::Var before to_css()")
+            }
+        }
+    }
+}
+
+impl CssValue {
+    fn collect_vars(&self, out: &mut Vec<Ident>) {
+        match self {
+            CssValue::Var(id) => out.push(id.clone()),
+            CssValue::Function { args, .. } => {
+                for arg in args {
+                    arg.collect_vars(out);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn lower_exprs(&mut self, exprs: &mut Vec<(Ident, syn::Expr)>) {
+        match self {
+            CssValue::Expr(_) => {
+                let idx = exprs.len();
+                let ident = Ident::new(
+                    &format!("__yew_sc_expr_{}", idx),
+                    proc_macro2::Span::call_site(),
+                );
+                let placeholder = CssValue::Var(ident.clone());
+                let old = std::mem::replace(self, placeholder);
+                if let CssValue::Expr(expr) = old {
+                    exprs.push((ident, expr));
+                }
+            }
+            CssValue::Function { args, .. } => {
+                for arg in args {
+                    arg.lower_exprs(exprs);
+                }
+            }
+            _ => {}
         }
     }
 }
 
 impl CssBlock {
+    pub fn collect_vars(&self) -> Vec<Ident> {
+        let mut out = Vec::new();
+        self.collect_vars_into(&mut out);
+        let mut seen = std::collections::BTreeSet::new();
+        out.retain(|id| seen.insert(id.to_string()));
+        out
+    }
+
+    fn collect_vars_into(&self, out: &mut Vec<Ident>) {
+        for item in &self.items {
+            match item {
+                CssItem::Decl(d) => d.value.collect_vars(out),
+                CssItem::Nested(rule) => rule.block.collect_vars_into(out),
+            }
+        }
+    }
+
+    pub fn lower_exprs(&mut self) -> Vec<(Ident, syn::Expr)> {
+        let mut out = Vec::new();
+        self.lower_exprs_into(&mut out);
+        out
+    }
+
+    fn lower_exprs_into(&mut self, out: &mut Vec<(Ident, syn::Expr)>) {
+        for item in &mut self.items {
+            match item {
+                CssItem::Decl(d) => d.value.lower_exprs(out),
+                CssItem::Nested(rule) => rule.block.lower_exprs_into(out),
+            }
+        }
+    }
+
     pub fn to_rules(&self, parent: &str) -> Vec<(String, String)> {
         let mut own = Vec::new();
         let mut children = Vec::new();

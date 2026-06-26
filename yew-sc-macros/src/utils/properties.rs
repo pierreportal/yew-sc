@@ -77,6 +77,7 @@ const KNOWN_PROPERTIES: &[&str] = &[
     "text-align",
     "text-decoration",
     "text-overflow",
+    "text-shadow",
     "text-transform",
     "top",
     "transform",
