@@ -3,6 +3,12 @@ name = "yew-sc-core"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+# Disables the runtime style registry. Use with the `yew-sc-extract` xtask,
+# which extracts compile-time CSS from the built wasm into a static .css file.
+static-extract = []
+
 [dependencies]
 yew = "0.23.0"
 web-sys = "0.3.95"

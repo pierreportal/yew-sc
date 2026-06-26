@@ -9,6 +9,13 @@ license = "MIT"
 [lib]
 path = "src/lib.rs"
 
+[features]
+default = []
+# Drop the runtime style registry. The macro still bakes every CSS rule into
+# a `yew_sc_css` wasm custom section so the `yew-sc-extract` xtask can pull
+# them into a static `.css` file at build time.
+static-extract = ["yew-sc-core/static-extract"]
+
 [dependencies]
 yew-sc-core = { path = "yew-sc-core", version = "0.1.0" }
 yew-sc-macros = { path = "yew-sc-macros", version = "0.1.0" }

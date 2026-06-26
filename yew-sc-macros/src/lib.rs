@@ -152,6 +152,20 @@ impl Parse for StyledComponents {
 
 const PLACEHOLDER: &str = "__YEW_SC_SELF__";
 
+/// Emit a length-prefixed CSS entry. Under `static-extract`, the declarative
+/// macro in `yew-sc-core` lowers this to a `#[link_section = "yew_sc_css"]`
+/// static; otherwise it expands to nothing.
+fn embed_css_entry(css: &str) -> proc_macro2::TokenStream {
+    let mut bytes: Vec<u8> = Vec::with_capacity(4 + css.len());
+    bytes.extend_from_slice(&(css.len() as u32).to_le_bytes());
+    bytes.extend_from_slice(css.as_bytes());
+    let total = bytes.len();
+    let byte_literals = bytes.iter().map(|b| quote!(#b));
+    quote! {
+        ::yew_sc::__yew_sc_embed_css!(#total, [#(#byte_literals),*]);
+    }
+}
+
 fn build_css(css: &CssBlock) -> (String, String) {
     let rules = css.to_rules(PLACEHOLDER);
     let placeholder_css = rules
@@ -274,9 +288,14 @@ fn expand_component(
     let inline_exprs = input.css.lower_exprs();
     let (class_name, css_string) = build_css(&input.css);
     let keyframe_registrations = keyframe_css.iter().map(|(hashed, css)| {
-        quote! { ::yew_sc::register_style(#hashed, #css); }
+        quote! { ::yew_sc::__yew_sc_register_style!(#hashed, #css); }
     });
     let keyframe_registrations = quote! { #(#keyframe_registrations)* };
+    let css_embed = embed_css_entry(&css_string);
+    let keyframe_embeds: proc_macro2::TokenStream = keyframe_css
+        .iter()
+        .map(|(_, css)| embed_css_entry(css))
+        .collect();
     let component_name = &input.name;
     let tag = &input.tag;
 
@@ -381,11 +400,13 @@ fn expand_component(
 
     let component_fn = |props_ty: &proc_macro2::TokenStream| {
         quote! {
+            #css_embed
+            #keyframe_embeds
             #[::yew::component]
             pub fn #component_name(props: &#props_ty) -> ::yew::Html {
                 ::yew::use_effect(|| {
                     #keyframe_registrations
-                    ::yew_sc::register_style(#class_name, #css_string)
+                    ::yew_sc::__yew_sc_register_style!(#class_name, #css_string);
                 });
                 #style_attr
                 ::yew::html! { #element }

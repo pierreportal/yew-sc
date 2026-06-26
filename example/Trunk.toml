@@ -1,0 +1,16 @@
+[build]
+target = "index.html"
+
+# Extract every styled_component!'s CSS from the wasm custom section into a
+# real stylesheet that the browser parses on its native fast path.
+#
+# Enable static extraction by also building with:
+#   trunk serve --features yew-sc/static-extract
+# The runtime style registry vanishes; only the .css file ships.
+[[hooks]]
+stage = "post_build"
+command = "sh"
+command_arguments = [
+    "-c",
+    '''wasm=$(ls $TRUNK_STAGING_DIR/*.wasm 2>/dev/null | head -1); if [ -n "$wasm" ]; then cargo run --quiet --manifest-path ../xtask/Cargo.toml --release -- "$wasm" "$TRUNK_STAGING_DIR/yew-sc.css"; fi''',
+]

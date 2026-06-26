@@ -295,6 +295,47 @@ html! {
 }
 ```
 
+## Static extraction (zero-runtime CSS)
+
+By default, each component registers its CSS in a tiny in-memory registry on
+first render and injects a `<style id="yew-styles">` tag. Enable the
+`static-extract` feature to drop that path entirely:
+
+```toml
+yew-sc = { version = "0.1", features = ["static-extract"] }
+```
+
+With the feature on:
+
+- Every `styled_component!` and `keyframes` block writes its CSS into a wasm
+  custom section called `yew_sc_css`. The bytes are linker-collected, not
+  registered at runtime.
+- `register_style` becomes a no-op; the registry, the `Mutex<HashMap>`, and
+  the `web_sys` style-tag DOM writes are dead-code-eliminated.
+
+A small extractor turns the section into a real stylesheet:
+
+```sh
+cargo run --manifest-path xtask/Cargo.toml --release -- \
+    path/to/your_app.wasm dist/yew-sc.css
+```
+
+The bundled `example/Trunk.toml` wires the extractor into a `post_build` hook
+so a `trunk serve --features yew-sc/static-extract` produces `dist/yew-sc.css`
+on every rebuild, and `index.html` loads it via a normal
+`<link rel="stylesheet">`.
+
+What this buys over `styled-components`:
+
+- Zero CSS strings in the wasm bundle.
+- The browser parses CSS on its native fast path and caches it separately
+  from the wasm.
+- Styles are present before wasm boots — no FOUC waiting on hydration.
+- Standard CSS tooling (PostCSS, minifiers, coverage in DevTools) just works.
+
+Dynamic styles still flow through `$name` / `${ expr }` → CSS custom
+properties, so the stylesheet stays static at build time.
+
 ## Workspace layout
 
 ```
@@ -302,6 +343,7 @@ yew-sc/
 ├── src/             # facade crate that re-exports the macro + runtime helpers
 ├── yew-sc-core/     # runtime: style registry, ToCssVar trait, helpers
 ├── yew-sc-macros/   # proc-macros: parser + codegen for `styled_component!`
+├── xtask/           # `yew-sc-extract` binary: wasm custom section → .css
 └── example/         # Yew app demonstrating the macro
 ```
 
