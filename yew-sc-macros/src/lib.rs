@@ -7,7 +7,8 @@ use syn::{
     parse::{Parse, ParseStream},
     parse_macro_input, parse_quote,
 };
-use utils::parser::{CssBlock, hash_css};
+use std::collections::BTreeMap;
+use utils::parser::{CssBlock, Keyframes, hash_css};
 use utils::tags::{is_void_tag, validate_tag};
 
 const BASE_FIELD_NAMES: &[&str] = &[
@@ -110,18 +111,42 @@ impl Parse for StyledComponentInput {
     }
 }
 
-struct StyledComponents(Vec<StyledComponentInput>);
+enum TopItem {
+    Component(StyledComponentInput),
+    Keyframes(Keyframes),
+}
+
+struct StyledComponents {
+    components: Vec<StyledComponentInput>,
+    keyframes: Vec<Keyframes>,
+}
 
 impl Parse for StyledComponents {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let mut items = Vec::new();
         while !input.is_empty() {
-            items.push(input.parse::<StyledComponentInput>()?);
+            if input.peek(syn::Ident) && input.fork().parse::<syn::Ident>()? == "keyframes" {
+                input.parse::<syn::Ident>()?; // consume `keyframes`
+                items.push(TopItem::Keyframes(input.parse::<Keyframes>()?));
+            } else {
+                items.push(TopItem::Component(input.parse::<StyledComponentInput>()?));
+            }
         }
-        if items.is_empty() {
-            return Err(input.error("expected at least one component declaration"));
+        let mut components = Vec::new();
+        let mut keyframes = Vec::new();
+        for it in items {
+            match it {
+                TopItem::Component(c) => components.push(c),
+                TopItem::Keyframes(k) => keyframes.push(k),
+            }
         }
-        Ok(StyledComponents(items))
+        if components.is_empty() && keyframes.is_empty() {
+            return Err(input.error("expected at least one component or keyframes declaration"));
+        }
+        Ok(StyledComponents {
+            components,
+            keyframes,
+        })
     }
 }
 
@@ -240,9 +265,18 @@ fn tag_shape(tag: &str) -> TagShape {
     }
 }
 
-fn expand_component(mut input: StyledComponentInput) -> proc_macro2::TokenStream {
+fn expand_component(
+    mut input: StyledComponentInput,
+    keyframe_names: &BTreeMap<String, String>,
+    keyframe_css: &[(String, String)],
+) -> proc_macro2::TokenStream {
+    input.css.rewrite_keyframe_refs(keyframe_names);
     let inline_exprs = input.css.lower_exprs();
     let (class_name, css_string) = build_css(&input.css);
+    let keyframe_registrations = keyframe_css.iter().map(|(hashed, css)| {
+        quote! { ::yew_sc::register_style(#hashed, #css); }
+    });
+    let keyframe_registrations = quote! { #(#keyframe_registrations)* };
     let component_name = &input.name;
     let tag = &input.tag;
 
@@ -350,6 +384,7 @@ fn expand_component(mut input: StyledComponentInput) -> proc_macro2::TokenStream
             #[::yew::component]
             pub fn #component_name(props: &#props_ty) -> ::yew::Html {
                 ::yew::use_effect(|| {
+                    #keyframe_registrations
                     ::yew_sc::register_style(#class_name, #css_string)
                 });
                 #style_attr
@@ -414,7 +449,23 @@ fn expand_component(mut input: StyledComponentInput) -> proc_macro2::TokenStream
 
 #[proc_macro]
 pub fn styled_component(input: TokenStream) -> TokenStream {
-    let components = parse_macro_input!(input as StyledComponents);
-    let expansions = components.0.into_iter().map(expand_component);
+    let parsed = parse_macro_input!(input as StyledComponents);
+    let StyledComponents {
+        components,
+        keyframes,
+    } = parsed;
+
+    let mut keyframe_names: BTreeMap<String, String> = BTreeMap::new();
+    let mut keyframe_css: Vec<(String, String)> = Vec::new();
+    for kf in &keyframes {
+        let hashed = kf.hashed_name();
+        let css = kf.rendered_css(&hashed);
+        keyframe_names.insert(kf.name.to_string(), hashed.clone());
+        keyframe_css.push((hashed, css));
+    }
+
+    let expansions = components
+        .into_iter()
+        .map(|c| expand_component(c, &keyframe_names, &keyframe_css));
     quote!(#(#expansions)*).into()
 }

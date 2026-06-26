@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
@@ -10,6 +11,16 @@ use super::functions::validate_function;
 use super::properties::validate_property;
 use super::to_css::ToCss;
 use super::units::validate_unit;
+
+pub struct Keyframes {
+    pub name: Ident,
+    pub stops: Vec<KeyframeStop>,
+}
+
+pub struct KeyframeStop {
+    pub selector: String,
+    pub decls: Vec<CssDeclaration>,
+}
 
 pub struct CssBlock {
     pub items: Vec<CssItem>,
@@ -97,6 +108,75 @@ fn parse_block_items(content: ParseStream) -> Result<Vec<CssItem>> {
         }
     }
     Ok(items)
+}
+
+fn parse_stop_selector(input: ParseStream) -> Result<String> {
+    let mut tokens: Vec<TokenTree> = Vec::new();
+    while !input.is_empty() && !input.peek(syn::token::Brace) {
+        let tt: TokenTree = input.parse()?;
+        tokens.push(tt);
+    }
+    if tokens.is_empty() {
+        return Err(input.error("expected keyframe stop (e.g. `from`, `to`, or `50%`)"));
+    }
+    let mut out = String::new();
+    for (i, tt) in tokens.iter().enumerate() {
+        if i > 0 {
+            let glue = matches!(tt, TokenTree::Punct(p) if p.as_char() == '%' || p.as_char() == ',');
+            if !glue {
+                out.push(' ');
+            }
+        }
+        out.push_str(&tt.to_string());
+    }
+    Ok(out)
+}
+
+impl Parse for Keyframes {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let name: Ident = input.parse()?;
+        let body;
+        braced!(body in input);
+        let mut stops = Vec::new();
+        while !body.is_empty() {
+            let selector = parse_stop_selector(&body)?;
+            let inner;
+            braced!(inner in body);
+            let mut decls = Vec::new();
+            while !inner.is_empty() {
+                decls.push(inner.parse::<CssDeclaration>()?);
+            }
+            stops.push(KeyframeStop { selector, decls });
+        }
+        Ok(Keyframes { name, stops })
+    }
+}
+
+impl Keyframes {
+    pub fn hashed_name(&self) -> String {
+        let body = self.body_css();
+        let mut hasher = DefaultHasher::new();
+        body.hash(&mut hasher);
+        format!("{}-{:x}", self.name, hasher.finish())
+    }
+
+    fn body_css(&self) -> String {
+        let mut out = String::new();
+        for stop in &self.stops {
+            out.push_str(&stop.selector);
+            out.push_str(" { ");
+            for d in &stop.decls {
+                out.push_str(&format!("{}: {}; ", d.property.to_css(), d.value.to_css()));
+            }
+            out.push('}');
+            out.push(' ');
+        }
+        out.trim_end().to_string()
+    }
+
+    pub fn rendered_css(&self, hashed: &str) -> String {
+        format!("@keyframes {} {{ {} }}", hashed, self.body_css())
+    }
 }
 
 impl Parse for CssBlock {
@@ -266,6 +346,23 @@ impl CssBlock {
         }
     }
 
+    pub fn rewrite_keyframe_refs(&mut self, names: &BTreeMap<String, String>) {
+        if names.is_empty() {
+            return;
+        }
+        for item in &mut self.items {
+            match item {
+                CssItem::Decl(d) => {
+                    let prop = d.property.to_css();
+                    if prop == "animation" || prop == "animation-name" {
+                        rewrite_value(&mut d.value, names);
+                    }
+                }
+                CssItem::Nested(rule) => rule.block.rewrite_keyframe_refs(names),
+            }
+        }
+    }
+
     pub fn to_rules(&self, parent: &str) -> Vec<(String, String)> {
         let mut own = Vec::new();
         let mut children = Vec::new();
@@ -287,6 +384,62 @@ impl CssBlock {
         rules.extend(children);
         rules
     }
+}
+
+fn rewrite_value(value: &mut CssValue, names: &BTreeMap<String, String>) {
+    match value {
+        CssValue::Keyword(id) => {
+            let key = id.to_string();
+            if let Some(hashed) = names.get(&key) {
+                *value = CssValue::Str(LitStr::new(hashed, id.span()));
+            }
+        }
+        CssValue::Str(s) => {
+            let raw = s.value();
+            let replaced = replace_idents(&raw, names);
+            if replaced != raw {
+                *value = CssValue::Str(LitStr::new(&replaced, s.span()));
+            }
+        }
+        CssValue::Function { args, .. } => {
+            for arg in args {
+                rewrite_value(arg, names);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn is_ident_char(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c == '_' || c == '-'
+}
+
+fn replace_idents(input: &str, names: &BTreeMap<String, String>) -> String {
+    let mut out = String::with_capacity(input.len());
+    let bytes = input.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+        if c.is_ascii_alphabetic() || c == '_' {
+            let start = i;
+            while i < bytes.len() && is_ident_char(bytes[i] as char) {
+                i += 1;
+            }
+            let word = &input[start..i];
+            let prev_ok = start == 0 || !is_ident_char(bytes[start - 1] as char);
+            if prev_ok {
+                if let Some(hashed) = names.get(word) {
+                    out.push_str(hashed);
+                    continue;
+                }
+            }
+            out.push_str(word);
+        } else {
+            out.push(c);
+            i += 1;
+        }
+    }
+    out
 }
 
 pub fn hash_css(css: &str) -> String {

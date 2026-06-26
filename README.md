@@ -198,6 +198,67 @@ Rules:
   as normal Yew props (`is_danger=true`). The `$` prefix lives only inside
   the `styled_component!` style block.
 
+## Animations
+
+Declare `@keyframes` alongside your components with the `keyframes` keyword.
+Stops accept `from` / `to` / percent literals (`0%`, `50%`, `100%`). The macro
+hashes each keyframes block and rewrites references inside `animation` and
+`animation-name` values, so two components can declare a `spin` without
+colliding.
+
+```rust
+styled_component! {
+    keyframes spin {
+        from { transform = rotate(0deg); }
+        to   { transform = rotate(360deg); }
+    }
+
+    keyframes pulse {
+        0%   { opacity = 0.4; }
+        50%  { opacity = 1.0; }
+        100% { opacity = 0.4; }
+    }
+
+    Spinner => div {
+        width = 24px;
+        height = 24px;
+        border = "3px solid rgba(168,179,255,0.25)";
+        border_top = "3px solid #a8b3ff";
+        border_radius = 999px;
+        animation_name = spin;
+        animation_duration = 800ms;
+        animation_timing_function = linear;
+        animation_iteration_count = "infinite";
+    }
+
+    // shorthand — the name is rewritten inside the string literal too
+    Pulse => span {
+        display = "inline-block";
+        animation = "pulse 1.6s ease-in-out infinite";
+    }
+}
+```
+
+What gets emitted:
+
+- `spin` is hashed to e.g. `spin-7aabb432687ba56b`, registered once as
+  `@keyframes spin-7aabb432687ba56b { from { … } to { … } }`.
+- `animation-name: spin;` becomes `animation-name: spin-7aabb432687ba56b;`.
+- Inside the `animation` shorthand string, the name is replaced with
+  word-boundary matching — `"pulse 1.6s …"` → `"pulse-832a1a103cb3ae34 1.6s …"`.
+
+Notes:
+
+- `keyframes` declarations live at the top level of `styled_component!`,
+  next to your component declarations — they're shared across every component
+  in the same macro invocation.
+- The shorthand `animation = spin 1s linear infinite;` (bare tokens) won't
+  parse — use a string literal: `animation = "spin 1s linear infinite";`. Or
+  use the longhand `animation_name = spin;` plus the other `animation_*`
+  properties.
+- Timing functions `cubic_bezier(...)` and `steps(...)` are accepted as
+  CSS functions.
+
 ## Supported HTML
 
 | Category    | Tags                                                       |
