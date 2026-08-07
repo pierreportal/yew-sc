@@ -445,6 +445,40 @@ Known gaps:
   selectors (`&:hover`, `&.active`, …); at-rules aren't parsed.
 - **MSRV is 1.88** (let-chains), above Yew's own 1.84 baseline.
 
+### Roadmap to a real `stylist` alternative
+
+`yew-sc` covers one thing `stylist` doesn't (compile-time-checked properties
+and elements) but is missing several things `stylist` already has. Rough
+priority order, high to low:
+
+- [ ] **`@media` at-rules.** The single biggest functional gap — nearly every
+      real app needs responsive styles, and there's no workaround today short
+      of a second, `stylist`-driven style layer.
+- [ ] **`@supports` at-rules.** Same parsing work as `@media`; do together.
+- [ ] **A `GlobalStyle` equivalent.** `stylist::GlobalStyle` applies dangling
+      declarations to `:root`/`html` for resets and app-wide base styles.
+      `yew-sc` has no way to emit CSS that isn't scoped to one hashed class.
+- [ ] **`@font-face`.** Low complexity, but currently unsupported alongside
+      `@keyframes` (which *is* supported).
+- [ ] **A runtime/standalone style API.** `stylist::Style::new` builds a style
+      from a string at runtime, independent of Yew — useful for dynamic
+      theming or CSS not known at compile time. `yew-sc` is macro-only; there
+      is no non-macro entry point.
+- [ ] **Theming support.** `stylist` has a documented Context-based theming
+      pattern; `yew-sc`'s `$name`/`${ expr }` custom-property mechanism covers
+      *some* of this per-component but there's no story for a shared,
+      app-wide theme object.
+- [ ] **`trybuild`-style compile-fail tests.** The parser already returns
+      `Err` for invalid properties/tags/units (see the `#[test]`s in
+      `yew-sc-macros/src/utils/`), but nothing asserts the actual end-user
+      compiler error text — which matters more here than for `stylist` since
+      "good compile errors" is the whole pitch.
+- [ ] **Lower MSRV to 1.84** (Yew's own baseline) by removing the let-chain
+      usages in `yew-sc-macros/src/utils/parser.rs` and `xtask/src/main.rs`,
+      or accept 1.88 explicitly and document why.
+- [ ] **A published crate.** Currently git-only (`yew-sc = { git = "..." }`);
+      `stylist` and most real dependencies of a Yew app are on crates.io.
+
 ## License
 
 MIT
