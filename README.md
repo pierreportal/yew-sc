@@ -103,6 +103,33 @@ cd example && trunk serve
 - **Sensible defaults** — `class`, `children`, `onclick`, `id`, `title`,
   `hidden`, `tabindex`, `role` are forwarded automatically.
 
+## Compared to `stylist`
+
+[`stylist`](https://github.com/futursolo/stylist-rs) is the established
+CSS-in-Rust crate for Yew and covers a broader surface today — `@media`,
+`@supports`, `@font-face`, arbitrary selectors, and an `ssr`/hydration-aware
+runtime. `yew-sc` takes a narrower, more opinionated approach:
+
+- `stylist` accepts CSS as a string (parsed at compile time via `css!` or at
+  runtime via `Style::new`); typos in property names or values surface as CSS
+  parse errors, not Rust type errors, and there's no check that a property is
+  valid for the element it's attached to.
+- `yew-sc` parses the style block as Rust tokens, so property names, units,
+  and element/attribute compatibility (e.g. `href` on a `button`) are checked
+  by `cargo check` against fixed tables, with errors pointing at the exact
+  token.
+- `yew-sc` always emits one component per style block rather than a
+  `Classes`/`Style` value to attach to an existing element — it's closer to
+  `styled-components` in shape, `stylist`'s `css!`/`style!` closer to
+  `emotion`'s string-template API.
+- `yew-sc` is missing at-rules (`@media`, `@supports`, `@keyframes` is
+  supported but `@font-face` is not) and has no `ssr`/hydration support yet —
+  see [Status](#status).
+
+If you need broad CSS coverage or SSR today, `stylist` is the safer choice.
+`yew-sc` is worth it if you want compile-time-checked properties and don't
+need at-rules yet.
+
 ## Dynamic styles
 
 Reference a dynamic value with `$name` inside the style block and the macro
@@ -366,6 +393,15 @@ yew-sc/
 
 Experimental — the API may break before `0.2`. Feedback, issues, and PRs are
 welcome.
+
+Known gaps:
+
+- **No `ssr`/`hydration` support.** The runtime style registry calls
+  `web_sys::window()` unconditionally and panics without a DOM, so
+  `styled_component!` output only works under `csr` today.
+- **No `@media` / `@supports` / `@font-face`.** Nesting only covers `&`-prefixed
+  selectors (`&:hover`, `&.active`, …); at-rules aren't parsed.
+- **MSRV is 1.88** (let-chains), above Yew's own 1.84 baseline.
 
 ## License
 

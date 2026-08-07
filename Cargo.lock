@@ -919,7 +919,6 @@ dependencies = [
 name = "yew-sc-core"
 version = "0.1.0"
 dependencies = [
- "syn 2.0.118",
  "web-sys",
  "yew",
 ]
@@ -939,7 +938,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.118",
- "yew",
 ]
 
 [[package]]

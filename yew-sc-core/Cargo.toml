@@ -2,6 +2,7 @@
 name = "yew-sc-core"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
 description = "Runtime helpers for yew-sc: style registry and ToCssVar trait."
 authors = ["Pierre Portal <pierreportal@proton.me>"]
 license = "MIT"
@@ -19,4 +20,3 @@ static-extract = []
 [dependencies]
 yew = "0.23.0"
 web-sys = "0.3.95"
-syn = {version = "2.0.117", features = ["full"]}

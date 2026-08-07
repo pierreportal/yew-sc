@@ -2,6 +2,7 @@
 name = "yew-sc-macros"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
 description = "Procedural macros for yew-sc: parser and codegen for `styled_component!`."
 authors = ["Pierre Portal <pierreportal@proton.me>"]
 license = "MIT"
@@ -17,5 +18,3 @@ proc-macro = true
 syn = {version = "2.0.117", features = ["full"]}
 quote = "1"
 proc-macro2 = "1"
-yew = "0.23.0"
-# yew-sc-core = {path = ".."}

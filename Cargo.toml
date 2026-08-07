@@ -2,6 +2,7 @@
 name = "yew-sc"
 version = "0.1.0"
 edition = "2024"
+rust-version = "1.88"
 description = "Styled components for Yew — compile-time CSS validation, hashed classes, dynamic styles via CSS custom properties, and optional static stylesheet extraction."
 authors = ["Pierre Portal <pierreportal@proton.me>"]
 license = "MIT"
