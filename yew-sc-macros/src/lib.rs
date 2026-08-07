@@ -397,9 +397,13 @@ fn expand_component(
             #keyframe_embeds
             #[::yew::component]
             pub fn #component_name(props: &#props_ty) -> ::yew::Html {
+                // Registered directly in the render body (not just from an
+                // effect) so the CSS is captured during server-side
+                // rendering too — Yew never runs effects under `ssr`.
+                #keyframe_registrations
+                ::yew_sc::__yew_sc_register_style!(#class_name, #css_string);
                 ::yew::use_effect(|| {
-                    #keyframe_registrations
-                    ::yew_sc::__yew_sc_register_style!(#class_name, #css_string);
+                    ::yew_sc::__yew_sc_sync_dom!();
                 });
                 #style_attr
                 ::yew::html! { #element }

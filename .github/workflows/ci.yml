@@ -50,6 +50,18 @@ jobs:
       - name: cargo test (xtask)
         run: cargo test --manifest-path xtask/Cargo.toml --all-targets
 
+  ssr-build:
+    name: ssr / hydration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: test ssr, no csr
+        run: cargo test -p yew-sc --no-default-features --features ssr --test ssr
+      - name: build with hydration, no csr
+        run: cargo build -p yew-sc --no-default-features --features hydration
+
   example-build:
     name: example (wasm)
     runs-on: ubuntu-latest

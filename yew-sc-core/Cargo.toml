@@ -18,5 +18,7 @@ default = []
 static-extract = []
 
 [dependencies]
-yew = "0.23.0"
-web-sys = "0.3.95"
+yew = { version = "0.23.0", default-features = false }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+web-sys = { version = "0.3.95", features = ["Window", "Document", "Element", "HtmlHeadElement"] }

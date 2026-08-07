@@ -107,8 +107,8 @@ cd example && trunk serve
 
 [`stylist`](https://github.com/futursolo/stylist-rs) is the established
 CSS-in-Rust crate for Yew and covers a broader surface today — `@media`,
-`@supports`, `@font-face`, arbitrary selectors, and an `ssr`/hydration-aware
-runtime. `yew-sc` takes a narrower, more opinionated approach:
+`@supports`, `@font-face`, and arbitrary selectors. `yew-sc` takes a
+narrower, more opinionated approach:
 
 - `stylist` accepts CSS as a string (parsed at compile time via `css!` or at
   runtime via `Style::new`); typos in property names or values surface as CSS
@@ -123,10 +123,13 @@ runtime. `yew-sc` takes a narrower, more opinionated approach:
   `styled-components` in shape, `stylist`'s `css!`/`style!` closer to
   `emotion`'s string-template API.
 - `yew-sc` is missing at-rules (`@media`, `@supports`, `@keyframes` is
-  supported but `@font-face` is not) and has no `ssr`/hydration support yet —
-  see [Status](#status).
+  supported but `@font-face` is not) — see [Status](#status).
+- Both support `ssr`/`hydration`: `yew-sc` registers each component's CSS
+  during render (not from an effect, since Yew never runs effects under
+  `ssr`) and exposes `yew_sc::stylesheet()` for the server to embed in the
+  response — see [SSR / hydration](#ssr--hydration).
 
-If you need broad CSS coverage or SSR today, `stylist` is the safer choice.
+If you need broad CSS coverage today, `stylist` is the safer choice.
 `yew-sc` is worth it if you want compile-time-checked properties and don't
 need at-rules yet.
 
@@ -378,6 +381,48 @@ What this buys over `styled-components`:
 Dynamic styles still flow through `$name` / `${ expr }` → CSS custom
 properties, so the stylesheet stays static at build time.
 
+## SSR / hydration
+
+`yew-sc`'s registry is DOM-free at its core: `styled_component!` registers
+each component's CSS directly in its render body, not from a `use_effect`.
+This matters because Yew never runs effects during server-side
+rendering — an effect-only registration path (the original design) meant no
+CSS was ever collected under `ssr`. Writing the accumulated stylesheet into
+a `<style>` tag (`sync_dom`, called from an effect) is a separate, client-only
+step gated to the `wasm32` target, since `web_sys` panics unconditionally
+on other targets rather than returning `None`.
+
+```toml
+[dependencies]
+yew-sc = { version = "0.1", default-features = false, features = ["ssr"] }
+yew    = { version = "0.23", default-features = false, features = ["ssr"] }
+```
+
+After rendering, pull the accumulated stylesheet and embed it in the
+response yourself — `yew-sc` doesn't assume a particular server framework:
+
+```rust
+let renderer = yew::ServerRenderer::<App>::new();
+let body = renderer.render().await;
+let css = yew_sc::stylesheet(); // every class registered so far, in this process
+let page = format!("<style>{css}</style>{body}");
+```
+
+Notes:
+
+- `stylesheet()` is process-wide and cumulative — it returns every class
+  registered by any request handled by this process, not just the current
+  page's. Class names are content-hashed, so a class always maps to the
+  same CSS; the only cost is some unused rules in the response as the
+  process serves more distinct components over its lifetime.
+- For a hydrating client (`features = ["hydration"]`), the client-side
+  effect still runs after hydration and writes the same CSS into a
+  `<style id="yew-styles">` tag — redundant with the server-embedded
+  `<style>` but not incorrect, since class names and CSS are identical.
+- The `csr` feature (enabled by default) and `ssr`/`hydration` are mutually
+  exclusive at the `yew` level per Yew's own feature design; pick one with
+  `default-features = false`.
+
 ## Workspace layout
 
 ```
@@ -396,9 +441,6 @@ welcome.
 
 Known gaps:
 
-- **No `ssr`/`hydration` support.** The runtime style registry calls
-  `web_sys::window()` unconditionally and panics without a DOM, so
-  `styled_component!` output only works under `csr` today.
 - **No `@media` / `@supports` / `@font-face`.** Nesting only covers `&`-prefixed
   selectors (`&:hover`, `&.active`, …); at-rules aren't parsed.
 - **MSRV is 1.88** (let-chains), above Yew's own 1.84 baseline.

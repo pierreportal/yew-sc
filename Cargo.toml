@@ -17,7 +17,16 @@ categories = ["gui", "web-programming", "wasm"]
 path = "src/lib.rs"
 
 [features]
-default = []
+default = ["csr"]
+# Client-side rendering. Enabled by default for backward compatibility;
+# a server-only binary can build with `default-features = false, features =
+# ["ssr"]` to avoid pulling in browser-only dependencies.
+csr = ["yew/csr"]
+# Server-side rendering: registers CSS during render (see `registry::stylesheet`)
+# instead of relying on effects, which Yew never runs under `ssr`.
+ssr = ["yew/ssr"]
+# Hydration of a server-rendered page on the client.
+hydration = ["yew/hydration"]
 # Drop the runtime style registry. The macro still bakes every CSS rule into
 # a `yew_sc_css` wasm custom section so the `yew-sc-extract` xtask can pull
 # them into a static `.css` file at build time.
@@ -26,7 +35,10 @@ static-extract = ["yew-sc-core/static-extract"]
 [dependencies]
 yew-sc-core = { path = "yew-sc-core", version = "0.1.0" }
 yew-sc-macros = { path = "yew-sc-macros", version = "0.1.0" }
-yew = { version = "0.23", features = ["csr"] }
+yew = { version = "0.23", default-features = false }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "macros"] }
 
 [workspace]
 members = ["yew-sc-core", "yew-sc-macros", "example"]
